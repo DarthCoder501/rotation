@@ -1,0 +1,67 @@
+# --- Secrets (never commit real values) ---
+.env
+.env.*
+!.env.example
+!.env*.example
+*.pem
+
+# --- Node / pnpm ---
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+pnpm-debug.log*
+
+# --- Next.js (apps/web) ---
+apps/web/.next/
+apps/web/out/
+apps/web/build/
+apps/web/.vercel/
+
+# --- Python (scripts/) ---
+scripts/.venv/
+**/.venv/
+__pycache__/
+*.py[cod]
+.Python
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+
+# --- Build / tooling ---
+.turbo/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# --- Logs ---
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Local datasets (large; use seed script instead) ---
+data/fragrances.csv
+data/*.csv
+
+# --- ML / Hugging Face caches ---
+.cache/
+**/.cache/
+huggingface/
+
+# --- Supabase CLI (local dev) ---
+supabase/.branches/
+supabase/.temp/

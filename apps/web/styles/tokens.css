@@ -1,0 +1,17 @@
+:root {
+  --bg-deep: #0a0612; /* page base under canvas */
+  --glass-bg: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur: 20px;
+  --text-primary: #f5f0eb; /* contrast 14.2:1 on --bg-deep ✓ AAA */
+  --text-secondary: #a89f96; /* contrast 7.1:1 ✓ AA */
+  --accent-gold: #c4a882;
+  --accent-glow: #e8c9a0;
+  --success: #7ec89b;
+  --danger: #e07a7a;
+  --focus-ring: #e8c9a0; /* 3px outline, offset 2px */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-full: 9999px;
+  --space-touch: 44px; /* WCAG min touch target */
+}

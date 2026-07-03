@@ -1,11 +1,5 @@
-import { AppShell } from "../../components/shell/AppShell";
+import { CollectionPageClient } from "@/components/collection/CollectionPageClient";
 
 export default function CollectionHomePage() {
-  return (
-    <AppShell>
-      <div>
-        <h1>Collection</h1>
-      </div>
-    </AppShell>
-  );
+  return <CollectionPageClient />;
 }

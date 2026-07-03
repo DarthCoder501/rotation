@@ -1,11 +1,5 @@
-import { AppShell } from "../../../components/shell/AppShell";
+import { CatalogSearchPageClient } from "@/components/collection/CatalogSearchPageClient";
 
 export default function CollectionSearchPage() {
-  return (
-    <AppShell>
-      <div>
-        <h1>Search</h1>
-      </div>
-    </AppShell>
-  );
+  return <CatalogSearchPageClient />;
 }

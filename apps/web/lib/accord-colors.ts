@@ -23,17 +23,41 @@ const ACCORD_COLORS: Record<string, string> = {
 
 const FALLBACK = "#8B7E74";
 
+/** Theme-aligned text candidates for accord pill labels. */
+const TEXT_CANDIDATES = ["#050505", "#f5ede0", "#ffffff"] as const;
+
+function relativeLuminance(hex: string): number {
+  const red = parseInt(hex.slice(1, 3), 16) / 255;
+  const green = parseInt(hex.slice(3, 5), 16) / 255;
+  const blue = parseInt(hex.slice(5, 7), 16) / 255;
+  const channel = (value: number) =>
+    value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+
+  return (
+    0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+  );
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const l1 = relativeLuminance(foreground);
+  const l2 = relativeLuminance(background);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 export function accordColor(accord: string): string {
   return ACCORD_COLORS[accord.trim().toLowerCase()] ?? FALLBACK;
 }
 
-/** Dark text on light accord pills — passes contrast on most mapped colors. */
+/** Picks the highest-contrast theme text color for each accord pill (WCAG AA 4.5:1). */
 export function accordTextColor(accord: string): string {
-  const color = accordColor(accord);
-  const red = parseInt(color.slice(1, 3), 16);
-  const green = parseInt(color.slice(3, 5), 16);
-  const blue = parseInt(color.slice(5, 7), 16);
-  const luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+  const background = accordColor(accord);
 
-  return luminance > 0.55 ? "#1a1028" : "#fff8ec";
+  return TEXT_CANDIDATES.reduce((best, candidate) =>
+    contrastRatio(candidate, background) > contrastRatio(best, background)
+      ? candidate
+      : best,
+  );
 }

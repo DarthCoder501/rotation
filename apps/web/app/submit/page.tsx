@@ -1,11 +1,16 @@
-import { AppShell } from "../../components/shell/AppShell";
+import { AppShell } from "@/components/shell/AppShell";
+import { SubmitPageClient } from "@/components/submit/SubmitPageClient";
 
-export default function SubmitPage() {
+export default async function SubmitPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q } = await searchParams;
+
   return (
     <AppShell>
-      <div>
-        <h1>Submit</h1>
-      </div>
+      <SubmitPageClient initialQuery={q ?? ""} />
     </AppShell>
   );
 }

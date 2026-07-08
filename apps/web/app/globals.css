@@ -14,3 +14,14 @@
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  border-color: var(--accent-gold);
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--accent-gold) 35%, transparent);
+  color: var(--text-primary);
+}

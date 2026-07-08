@@ -43,7 +43,7 @@ export function AccordBubbles({
       {overflow > 0 && (
         <li role="listitem">
           <span
-            className={`inline-block rounded-full bg-white/10 text-(--text-secondary) ${px}`}
+            className={`inline-block rounded-full border border-(--glass-border) bg-(--glass-bg) text-(--text-secondary) ${px}`}
             aria-label={`${overflow} more accords`}
           >
             +{overflow}

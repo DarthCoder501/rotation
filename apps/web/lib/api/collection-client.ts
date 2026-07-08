@@ -6,7 +6,6 @@ export interface CollectionResponse {
 
 /**
  * Fetch the signed-in user's collection (fragrances they own).
- * Wire this to GET /api/collection once you implement the route.
  */
 export async function fetchCollection(): Promise<CollectionResponse> {
   const res = await fetch("/api/collection");
@@ -22,7 +21,6 @@ export async function fetchCollection(): Promise<CollectionResponse> {
 
 /**
  * Add a fragrance from the source catalog to the user's collection.
- * Wire this to POST /api/collection { fragranceId }.
  */
 export async function addToCollection(fragranceId: number): Promise<void> {
   const res = await fetch("/api/collection", {
@@ -41,7 +39,6 @@ export async function addToCollection(fragranceId: number): Promise<void> {
 
 /**
  * Remove a fragrance from the user's collection.
- * Wire this to DELETE /api/collection/[fragranceId].
  */
 export async function removeFromCollection(fragranceId: number): Promise<void> {
   const res = await fetch(`/api/collection/${fragranceId}`, {

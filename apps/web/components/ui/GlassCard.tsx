@@ -13,7 +13,7 @@ export function GlassCard({
 }: GlassCardProps) {
   return (
     <Tag
-      className={`rounded-(--radius-md) border border-(--glass-border) bg-(--glass-bg) backdrop-blur-[var(--glass-blur)] ${className}`}
+      className={`rounded-md border border-(--glass-border) bg-(--glass-bg) backdrop-blur-(--glass-blur) ${className}`}
     >
       {children}
     </Tag>

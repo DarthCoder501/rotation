@@ -7,7 +7,6 @@ import {
 } from "@/lib/server/fragrance-mapper";
 
 const MIN_QUERY_LENGTH = 2;
-const MIN_RATING = 3.8;
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? "";
@@ -25,7 +24,6 @@ export async function GET(req: NextRequest) {
     supabaseAdmin
       .from("fragrances")
       .select(fragranceSelect)
-      .gte("rating_value", MIN_RATING)
       .order("rating_value", { ascending: false })
       .limit(25);
 

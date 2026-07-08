@@ -7,8 +7,6 @@ import {
 } from "@/lib/server/fragrance-mapper";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 
-const MIN_COLLECTION_RATING = 3.8;
-
 type CollectionItemRow = {
   added_at: string | null;
   fragrances: FragranceRow | FragranceRow[] | null;
@@ -85,7 +83,6 @@ export async function POST(req: NextRequest) {
       .from("fragrances")
       .select("id, rating_value")
       .eq("id", fragranceId)
-      .gte("rating_value", MIN_COLLECTION_RATING)
       .maybeSingle();
 
     if (fragranceError) {
@@ -96,10 +93,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!fragrance) {
-      return NextResponse.json(
-        { message: "Fragrance not found or below the collection rating floor." },
-        { status: 404 },
-      );
+      return NextResponse.json({ status: 404 });
     }
 
     const { error: upsertError } = await supabaseAdmin

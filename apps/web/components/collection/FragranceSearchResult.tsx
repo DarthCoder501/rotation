@@ -99,7 +99,7 @@ export function FragranceSearchResult({
             type="button"
             onClick={onAdd}
             disabled={isAdding}
-            className="inline-flex min-h-(--space-touch) items-center justify-center rounded-full bg-(--accent-gold) px-5 text-sm font-medium text-(--bg-deep) transition-opacity hover:opacity-90 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+            className="inline-flex min-h-(--space-touch) items-center justify-center rounded-full bg-(--accent-gold) px-5 text-sm font-medium text-(--text-on-accent) hover:bg-(--accent-gold-hover) disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
           >
             {isAdding ? "Adding…" : "+ Add to collection"}
           </button>
@@ -160,11 +160,15 @@ export function EmptySearchState({ query }: EmptySearchStateProps) {
 
 export function SearchLoadingState() {
   return (
-    <div className="space-y-3" aria-busy="true" aria-label="Loading search results">
+    <div
+      className="space-y-3"
+      aria-busy="true"
+      aria-label="Loading search results"
+    >
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="h-36 animate-pulse rounded-(--radius-md) border border-(--glass-border) bg-(--glass-bg)"
+          className="h-36 animate-pulse rounded-md border border-(--glass-border) bg-(--glass-bg)"
         />
       ))}
     </div>

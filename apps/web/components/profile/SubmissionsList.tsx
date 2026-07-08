@@ -1,0 +1,129 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { GlassCard } from "@/components/ui/GlassCard";
+import { fetchSubmissions } from "@/lib/api/submissions-client";
+import type { FragranceSubmission, SubmissionStatus } from "@/lib/types/submission";
+
+export function SubmissionsList() {
+  const [submissions, setSubmissions] = useState<FragranceSubmission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { submissions: rows } = await fetchSubmissions();
+      setSubmissions(rows);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load submissions");
+      setSubmissions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [load]);
+
+  return (
+    <section aria-labelledby="submissions-heading">
+      <h2
+        id="submissions-heading"
+        className="font-(family-name:--font-display) text-xl text-(--text-primary)"
+      >
+        Your submissions
+      </h2>
+      <p className="mt-1 text-sm text-(--text-secondary)">
+        Pending items are reviewed before they can appear in the catalog.
+      </p>
+
+      {error && (
+        <p className="mt-4 text-sm text-(--danger)" role="alert">
+          {error}{" "}
+          <button
+            type="button"
+            onClick={load}
+            className="text-(--accent-gold) underline-offset-2 hover:underline"
+          >
+            Retry
+          </button>
+        </p>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {loading ? (
+          <div className="space-y-3" aria-busy="true" aria-label="Loading submissions">
+            {[1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-24 animate-pulse rounded-md border border-(--glass-border) bg-(--glass-bg)"
+              />
+            ))}
+          </div>
+        ) : submissions.length === 0 && !error ? (
+          <p className="text-sm text-(--text-secondary)">
+            No submissions yet. Search the catalog and propose a missing fragrance.
+          </p>
+        ) : (
+          submissions.map((submission) => (
+            <SubmissionRow key={submission.id} submission={submission} />
+          ))
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SubmissionRow({ submission }: { submission: FragranceSubmission }) {
+  return (
+    <GlassCard className="p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="font-(family-name:--font-display) text-lg leading-tight text-(--text-primary)">
+            {submission.perfume}
+          </h3>
+          <p className="mt-0.5 text-sm text-(--text-secondary)">{submission.brand}</p>
+          <p className="mt-2 text-xs text-(--text-secondary)">
+            Submitted {formatDate(submission.createdAt)}
+          </p>
+        </div>
+        <StatusBadge status={submission.status} />
+      </div>
+      {submission.userNotes && (
+        <p className="mt-3 text-sm text-(--text-secondary)">{submission.userNotes}</p>
+      )}
+    </GlassCard>
+  );
+}
+
+function StatusBadge({ status }: { status: SubmissionStatus }) {
+  const styles: Record<SubmissionStatus, string> = {
+    pending: "border-(--accent-gold)/40 bg-(--accent-gold)/10 text-(--accent-gold)",
+    approved: "border-(--success)/40 bg-(--success)/10 text-(--success)",
+    rejected: "border-(--danger)/40 bg-(--danger)/10 text-(--danger)",
+  };
+
+  return (
+    <span
+      className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium capitalize ${styles[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
+
+function formatDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}

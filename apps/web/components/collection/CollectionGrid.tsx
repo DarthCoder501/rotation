@@ -53,7 +53,7 @@ function CollectionGridItem({
       <GlassCard className="flex h-full flex-col p-3 transition-transform hover:scale-[1.02] motion-reduce:transition-none">
         <Link
           href={`/fragrance/${fragrance.id}`}
-          className="flex flex-1 flex-col focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) rounded-(--radius-sm)"
+          className="flex flex-1 flex-col focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) rounded-sm"
         >
           <h2 className="font-(family-name:--font-display) text-base leading-snug line-clamp-2">
             {fragrance.perfume}
@@ -73,7 +73,7 @@ function CollectionGridItem({
             type="button"
             onClick={() => onRemove(fragrance.id)}
             disabled={isRemoving}
-            className="mt-2 w-full min-h-9 rounded-(--radius-sm) border border-(--glass-border) text-xs text-(--text-secondary) hover:border-(--danger)/50 hover:text-(--danger) disabled:opacity-50"
+            className="mt-2 w-full min-h-9 rounded-sm border border-(--glass-border) text-xs text-(--text-secondary) hover:border-(--danger)/50 hover:text-(--danger) disabled:opacity-50"
             aria-label={`Remove ${fragrance.perfume} from collection`}
           >
             {isRemoving ? "Removing…" : "Remove"}
@@ -96,7 +96,7 @@ export function CollectionEmptyState() {
       </p>
       <Link
         href="/collection/search"
-        className="mt-8 inline-flex min-h-(--space-touch) items-center justify-center rounded-full bg-(--accent-gold) px-8 text-sm font-medium text-(--bg-deep) hover:opacity-90"
+        className="mt-8 inline-flex min-h-(--space-touch) items-center justify-center rounded-full bg-(--accent-gold) px-8 text-sm font-medium text-(--text-on-accent) hover:bg-(--accent-gold-hover) focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
       >
         Search the catalog
       </Link>
@@ -114,7 +114,7 @@ export function CollectionLoadingState() {
       {Array.from({ length: 6 }).map((_, i) => (
         <div
           key={i}
-          className="h-36 animate-pulse rounded-(--radius-md) border border-(--glass-border) bg-(--glass-bg)"
+          className="h-36 animate-pulse rounded-md border border-(--glass-border) bg-(--glass-bg)"
         />
       ))}
     </div>

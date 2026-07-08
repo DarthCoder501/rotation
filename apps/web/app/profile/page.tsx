@@ -1,11 +1,10 @@
-import { AppShell } from "../../components/shell/AppShell";
+import { AppShell } from "@/components/shell/AppShell";
+import { ProfilePageClient } from "@/components/profile/ProfilePageClient";
 
 export default function ProfilePage() {
   return (
     <AppShell>
-      <div>
-        <h1>Profile</h1>
-      </div>
+      <ProfilePageClient />
     </AppShell>
   );
 }

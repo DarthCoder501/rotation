@@ -1,15 +1,34 @@
 :root {
-  --bg-deep: #0a0612; /* page base under canvas */
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  /* Liquid Obsidian — layered black depths */
+  --bg-deep: #050505; /* page base under canvas · 1:1 ref */
+  --bg-canvas: #0a0a0a; /* canvas gradient start */
+  --bg-canvas-mid: #121110; /* warm obsidian mid-tone */
+  --bg-canvas-end: #1a1814; /* amber-kissed depth */
+
+  /* Glass — warm champagne frost */
+  --glass-bg: rgba(245, 237, 224, 0.04);
+  --glass-border: rgba(212, 175, 110, 0.16);
   --glass-blur: 20px;
-  --text-primary: #f5f0eb; /* contrast 14.2:1 on --bg-deep ✓ AAA */
-  --text-secondary: #a89f96; /* contrast 7.1:1 ✓ AA */
-  --accent-gold: #c4a882;
-  --accent-glow: #e8c9a0;
-  --success: #7ec89b;
-  --danger: #e07a7a;
-  --focus-ring: #e8c9a0; /* 3px outline, offset 2px */
+
+  /* Champagne text */
+  --text-primary: #f5ede0; /* 17.5:1 on --bg-deep ✓ AAA */
+  --text-secondary: #b8aa98; /* 8.97:1 on --bg-deep ✓ AA */
+  --text-on-accent: #050505; /* 9.78:1 on --accent-gold ✓ AA */
+
+  /* Liquid gold & amber accents */
+  --accent-gold: #d4af58; /* 9.78:1 on --bg-deep ✓ AA */
+  --accent-gold-hover: #e0bc66; /* 11.2:1 on --bg-deep ✓ AA */
+  --accent-glow: #e8c872; /* highlights · 12.6:1 on --bg-deep ✓ AAA */
+  --accent-amber: #e6a847; /* secondary accent · 10.4:1 on --bg-deep ✓ AA */
+
+  /* Semantic states */
+  --success: #72c896; /* 10.1:1 on --bg-deep ✓ AA */
+  --danger: #e87575; /* 7.0:1 on --bg-deep ✓ AA */
+
+  /* Focus — WCAG 2.4.11: 3px ring, 12.6:1 on --bg-deep ✓ */
+  --focus-ring: #e8c872;
+  --focus-ring-offset: #050505;
+
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-full: 9999px;

@@ -27,7 +27,7 @@ export function BottomNav() {
               href={tab.href}
               aria-label={tab.ariaLabel}
               aria-current={path === tab.href ? "page" : undefined}
-              className={`flex flex-col items-center justify-center h-full min-h-(--space-touch) text-xs ${path === tab.href ? "text-(--accent-gold)" : "text-(--text-secondary)"}`}
+              className={`flex flex-col items-center justify-center h-full min-h-(--space-touch) text-xs rounded-sm focus-visible:outline focus-visible:outline-offset-[-2px] focus-visible:outline-(--focus-ring) ${path === tab.href ? "text-(--accent-gold)" : "text-(--text-secondary) hover:text-(--text-primary)"}`}
             >
               {tab.label}
             </Link>

@@ -1,4 +1,5 @@
 import { getOrCreateDeviceProfile } from "@/lib/server/device-profile";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { NextResponse } from "next/server";
 
@@ -23,7 +24,12 @@ export async function DELETE(
 
     if (error) {
       return NextResponse.json(
-        { message: `Failed to remove fragrance: ${error.message}` },
+        {
+          message: toUserFacingMessage(
+            error.message,
+            "Couldn't remove that fragrance.",
+          ),
+        },
         { status: 500 },
       );
     }
@@ -32,10 +38,10 @@ export async function DELETE(
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected error removing fragrance",
+        message: toUserFacingMessage(
+          error,
+          "Couldn't remove that fragrance.",
+        ),
       },
       { status: 500 },
     );

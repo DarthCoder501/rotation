@@ -2,9 +2,17 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { buildMCPContext } from "./build-mcp-context";
 import { extractFeatureVector, FEATURE_DIM } from "./feature-vector";
 import { FragranceRanker, MIN_RATING, TOP_K } from "./fragrance-ranker";
-import { clearWeights, loadWeights, STORAGE_KEY } from "./storage";
+import {
+  clearLegacyWeights,
+  clearWeights,
+  loadWeights,
+  STORAGE_KEY_PREFIX,
+  weightsStorageKey,
+} from "./storage";
 import { EMPTY_PROFILE } from "./types";
 import { makeFragrance, vanillaProfile } from "./test-fixtures";
+
+const TEST_PROFILE_ID = "test-profile-00000000-0000-0000-0000-000000000001";
 
 function mockLocalStorage() {
   const store = new Map<string, string>();
@@ -56,11 +64,12 @@ describe("extractFeatureVector", () => {
 describe("FragranceRanker", () => {
   beforeEach(() => {
     mockLocalStorage();
-    clearWeights();
+    clearWeights(TEST_PROFILE_ID);
+    clearLegacyWeights();
   });
 
   it("excludes fragrances rated below MIN_RATING", () => {
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const lowRated = makeFragrance({
       id: 1,
       perfume: "Low",
@@ -72,7 +81,7 @@ describe("FragranceRanker", () => {
   });
 
   it("rankAll returns at most TOP_K candidates", () => {
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const candidates = Array.from({ length: 30 }, (_, index) =>
       makeFragrance({
         id: index + 1,
@@ -88,7 +97,7 @@ describe("FragranceRanker", () => {
   });
 
   it("filters out low-rated items from rankAll", () => {
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const candidates = [
       makeFragrance({
         id: 1,
@@ -133,7 +142,7 @@ describe("FragranceRanker", () => {
       ratingValue: 4.4,
     });
 
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const before = ranker.score(similar, vanillaProfile);
 
     ranker.recordFeedback(liked, vanillaProfile, 1);
@@ -160,7 +169,7 @@ describe("FragranceRanker", () => {
       ratingValue: 4.5,
     });
 
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     ranker.recordPairwiseChoice(winner, loser, vanillaProfile);
 
     const ranked = ranker.rankAll([winner, loser], vanillaProfile);
@@ -168,7 +177,7 @@ describe("FragranceRanker", () => {
     expect(ranked[0]?.score).toBeGreaterThan(ranked[1]?.score ?? -Infinity);
   });
 
-  it("persists weights to localStorage", () => {
+  it("persists weights to profile-scoped localStorage", () => {
     const row = makeFragrance({
       id: 1,
       perfume: "Persist",
@@ -176,14 +185,39 @@ describe("FragranceRanker", () => {
       mainAccord1: "vanilla",
     });
 
-    const ranker = new FragranceRanker();
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
     ranker.recordFeedback(row, vanillaProfile, 1);
 
-    expect(globalThis.localStorage.getItem(STORAGE_KEY)).toBeTruthy();
+    expect(
+      globalThis.localStorage.getItem(weightsStorageKey(TEST_PROFILE_ID)),
+    ).toBeTruthy();
 
-    const reloaded = new FragranceRanker();
+    const reloaded = new FragranceRanker(TEST_PROFILE_ID);
     expect(reloaded.score(row, vanillaProfile)).toBeGreaterThan(0);
-    expect(Array.from(loadWeights()).some((weight) => weight !== 0)).toBe(true);
+    expect(
+      Array.from(loadWeights(TEST_PROFILE_ID)).some((weight) => weight !== 0),
+    ).toBe(true);
+  });
+
+  it("migrates legacy global storage key on profile-scoped load", () => {
+    const legacy = new Float32Array(FEATURE_DIM);
+    legacy[0] = 0.5;
+    globalThis.localStorage.setItem(
+      STORAGE_KEY_PREFIX,
+      JSON.stringify(Array.from(legacy)),
+    );
+
+    const ranker = new FragranceRanker(TEST_PROFILE_ID);
+    expect(ranker.score(
+      makeFragrance({
+        id: 1,
+        perfume: "Test",
+        brand: "B",
+        mainAccord1: "vanilla",
+        ratingValue: 4.5,
+      }),
+      vanillaProfile,
+    )).not.toBe(0);
   });
 });
 

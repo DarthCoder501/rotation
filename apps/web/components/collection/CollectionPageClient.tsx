@@ -12,6 +12,10 @@ import {
   fetchCollection,
   removeFromCollection,
 } from "@/lib/api/collection-client";
+import {
+  isInternalErrorMessage,
+  toUserFacingMessage,
+} from "@/lib/api/user-facing-error";
 import { cacheCollection } from "@/lib/collection-cache";
 import type { Fragrance } from "@/lib/types/fragrance";
 
@@ -29,7 +33,12 @@ export function CollectionPageClient() {
       setItems(fetched);
       await cacheCollection(fetched);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load collection");
+      const message =
+        e instanceof Error ? e.message : "Failed to load collection";
+      // Schema/profile internals — show empty state instead of a red banner
+      if (!isInternalErrorMessage(message)) {
+        setError(toUserFacingMessage(e, "Couldn't load your collection."));
+      }
       setItems([]);
     } finally {
       setLoading(false);
@@ -52,7 +61,11 @@ export function CollectionPageClient() {
       setItems(next);
       await cacheCollection(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to remove fragrance");
+      const message =
+        e instanceof Error ? e.message : "Failed to remove fragrance";
+      if (!isInternalErrorMessage(message)) {
+        setError(toUserFacingMessage(e, "Couldn't remove that fragrance."));
+      }
     } finally {
       setRemovingId(null);
     }

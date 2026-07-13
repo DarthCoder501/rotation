@@ -1,4 +1,5 @@
 import { Fraunces, DM_Sans } from "next/font/google";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { SkipLink } from "@/components/shell/SkipLink";
 import "./globals.css";
 
@@ -14,7 +15,9 @@ export default function RootLayout({
     <html lang="en" className={`${fraunces.variable} ${dmSans.variable}`}>
       <body className="bg-(--bg-deep) text-(--text-primary) font-(family-name:--font-body) antialiased">
         <SkipLink />
-        <div id="main-content">{children}</div>
+        <AuthProvider>
+          <div id="main-content">{children}</div>
+        </AuthProvider>
       </body>
     </html>
   );

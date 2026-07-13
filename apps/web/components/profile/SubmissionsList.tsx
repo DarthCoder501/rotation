@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { fetchSubmissions } from "@/lib/api/submissions-client";
+import {
+  isInternalErrorMessage,
+  toUserFacingMessage,
+} from "@/lib/api/user-facing-error";
 import type { FragranceSubmission, SubmissionStatus } from "@/lib/types/submission";
 
 export function SubmissionsList() {
@@ -17,7 +21,11 @@ export function SubmissionsList() {
       const { submissions: rows } = await fetchSubmissions();
       setSubmissions(rows);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load submissions");
+      const message =
+        e instanceof Error ? e.message : "Failed to load submissions";
+      if (!isInternalErrorMessage(message)) {
+        setError(toUserFacingMessage(e, "Couldn't load your submissions."));
+      }
       setSubmissions([]);
     } finally {
       setLoading(false);

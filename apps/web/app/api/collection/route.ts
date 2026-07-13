@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { getOrCreateDeviceProfile } from "@/lib/server/device-profile";
 import {
   fragranceSelect,
@@ -29,7 +30,13 @@ export async function GET() {
 
     if (error) {
       return NextResponse.json(
-        { items: [], message: `Failed to load collection: ${error.message}` },
+        {
+          items: [],
+          message: toUserFacingMessage(
+            error.message,
+            "Couldn't load your collection.",
+          ),
+        },
         { status: 500 },
       );
     }
@@ -45,10 +52,10 @@ export async function GET() {
     return NextResponse.json(
       {
         items: [],
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected error loading collection",
+        message: toUserFacingMessage(
+          error,
+          "Couldn't load your collection.",
+        ),
       },
       { status: 500 },
     );
@@ -87,7 +94,12 @@ export async function POST(req: NextRequest) {
 
     if (fragranceError) {
       return NextResponse.json(
-        { message: `Failed to verify fragrance: ${fragranceError.message}` },
+        {
+          message: toUserFacingMessage(
+            fragranceError.message,
+            "Couldn't verify that fragrance.",
+          ),
+        },
         { status: 500 },
       );
     }
@@ -108,7 +120,12 @@ export async function POST(req: NextRequest) {
 
     if (upsertError) {
       return NextResponse.json(
-        { message: `Failed to add fragrance: ${upsertError.message}` },
+        {
+          message: toUserFacingMessage(
+            upsertError.message,
+            "Couldn't add that fragrance.",
+          ),
+        },
         { status: 500 },
       );
     }
@@ -117,10 +134,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected error adding fragrance",
+        message: toUserFacingMessage(
+          error,
+          "Couldn't add that fragrance.",
+        ),
       },
       { status: 500 },
     );

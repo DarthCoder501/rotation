@@ -1,6 +1,7 @@
 import { FEATURE_DIM, extractFeatureVector } from "./feature-vector";
 import { loadWeights, saveWeights } from "./storage";
 import type { FragranceRow, RankedFragrance, UserProfile } from "./types";
+import { queueRankerWeightSync } from "./weight-sync";
 
 export const LEARNING_RATE = 0.05;
 export const MIN_RATING = 3.8;
@@ -8,9 +9,11 @@ export const TOP_K = 15;
 
 export class FragranceRanker {
   private weights: Float32Array;
+  private readonly profileId: string;
 
-  constructor() {
-    this.weights = loadWeights();
+  constructor(profileId: string, initialWeights?: Float32Array) {
+    this.profileId = profileId;
+    this.weights = initialWeights ?? loadWeights(profileId);
   }
 
   score(row: FragranceRow, profile: UserProfile): number {
@@ -61,7 +64,8 @@ export class FragranceRanker {
   }
 
   private persist(): void {
-    saveWeights(this.weights);
+    saveWeights(this.profileId, this.weights);
+    queueRankerWeightSync(this.profileId, this.weights);
   }
 }
 

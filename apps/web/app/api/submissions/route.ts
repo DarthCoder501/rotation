@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { getOrCreateDeviceProfile } from "@/lib/server/device-profile";
 import {
   mapSubmission,
@@ -22,7 +23,10 @@ export async function GET() {
       return NextResponse.json(
         {
           submissions: [],
-          message: `Failed to load submissions: ${error.message}`,
+          message: toUserFacingMessage(
+            error.message,
+            "Couldn't load your submissions.",
+          ),
         },
         { status: 500 },
       );
@@ -34,10 +38,10 @@ export async function GET() {
     return NextResponse.json(
       {
         submissions: [],
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected error loading submissions",
+        message: toUserFacingMessage(
+          error,
+          "Couldn't load your submissions.",
+        ),
       },
       { status: 500 },
     );
@@ -88,7 +92,12 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       return NextResponse.json(
-        { message: `Failed to create submission: ${error.message}` },
+        {
+          message: toUserFacingMessage(
+            error.message,
+            "Couldn't create that submission.",
+          ),
+        },
         { status: 500 },
       );
     }
@@ -100,10 +109,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected error creating submission",
+        message: toUserFacingMessage(
+          error,
+          "Couldn't create that submission.",
+        ),
       },
       { status: 500 },
     );

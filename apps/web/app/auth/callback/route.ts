@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resolveAppProfile } from "@/lib/server/app-profile";
+import { ensureAuthenticatedProfile } from "@/lib/server/app-profile";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -9,10 +9,19 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
-    if (!error) {
-      await resolveAppProfile();
+    if (!error && data.user) {
+      try {
+        // Use the user from the exchange directly — a fresh getUser() in the
+        // same request can miss the brand-new session cookies.
+        await ensureAuthenticatedProfile(
+          data.user.id,
+          data.user.email ?? null,
+        );
+      } catch (profileError) {
+        console.error("Failed to link app profile after Google sign-in", profileError);
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

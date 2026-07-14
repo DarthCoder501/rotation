@@ -51,6 +51,7 @@ export function clearWeights(profileId: string): void {
   const storage = getLocalStorage();
   if (!storage) return;
   storage.removeItem(weightsStorageKey(profileId));
+  storage.removeItem(`scent_active_profile_id:${profileId}:updated`);
 }
 
 /** Legacy global key from pre-auth ranker — migrated on hydrate. */

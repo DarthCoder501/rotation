@@ -1,0 +1,370 @@
+@keyframes oil-drop-form {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -60%) scale(0.2);
+    filter: blur(8px);
+  }
+  45% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes oil-bloom-open {
+  0% {
+    width: 28px;
+    height: 36px;
+    border-radius: 50% 50% 48% 48% / 42% 42% 58% 58%;
+    opacity: 0.95;
+  }
+  55% {
+    width: min(92vw, 26rem);
+    height: 12rem;
+    border-radius: 1.25rem;
+    opacity: 1;
+  }
+  100% {
+    width: min(92vw, 26rem);
+    height: auto;
+    min-height: 14rem;
+    border-radius: 1rem;
+    opacity: 1;
+  }
+}
+
+@keyframes oil-bloom-open-roomy {
+  0% {
+    width: 28px;
+    height: 36px;
+    border-radius: 50% 50% 48% 48% / 42% 42% 58% 58%;
+    opacity: 0.95;
+  }
+  55% {
+    width: min(94vw, 36rem);
+    height: 18rem;
+    border-radius: 1.25rem;
+    opacity: 1;
+  }
+  100% {
+    width: min(94vw, 36rem);
+    height: auto;
+    min-height: 22rem;
+    border-radius: 1.15rem;
+    opacity: 1;
+  }
+}
+
+@keyframes oil-ripple {
+  0% {
+    transform: translate(-50%, -50%) scale(0.4);
+    opacity: 0.55;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes oil-sheen {
+  0% {
+    background-position: 0% 40%;
+  }
+  100% {
+    background-position: 100% 60%;
+  }
+}
+
+@keyframes scent-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.oil-drop-stage {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 28px;
+  height: 36px;
+  border-radius: 50% 50% 48% 48% / 42% 42% 58% 58%;
+  background:
+    radial-gradient(ellipse at 35% 25%, rgba(255, 235, 190, 0.75), transparent 45%),
+    linear-gradient(160deg, #e8c872 0%, #d4af58 42%, #8a6a2a 100%);
+  box-shadow:
+    0 0 24px rgba(212, 175, 88, 0.45),
+    0 12px 32px rgba(0, 0, 0, 0.55);
+  animation: oil-drop-form 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.oil-ripple {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 48px;
+  height: 48px;
+  border-radius: 9999px;
+  border: 1px solid rgba(232, 200, 114, 0.45);
+  animation: oil-ripple 0.9s ease-out 0.2s forwards;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.oil-bloom-panel {
+  position: relative;
+  overflow: hidden;
+  width: min(92vw, 26rem);
+  border: 1px solid rgba(212, 175, 88, 0.28);
+  background:
+    linear-gradient(
+      135deg,
+      rgba(232, 200, 114, 0.12),
+      rgba(18, 17, 16, 0.92) 40%,
+      rgba(10, 10, 10, 0.96)
+    ),
+    radial-gradient(ellipse at 30% 0%, rgba(232, 200, 114, 0.18), transparent 55%);
+  background-size: 200% 200%, 100% 100%;
+  box-shadow:
+    0 24px 64px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(245, 237, 224, 0.08);
+  animation:
+    oil-bloom-open 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both,
+    oil-sheen 4s ease-in-out 1.1s infinite alternate;
+  z-index: 2;
+}
+
+/* Wider dialog for preference / liking capture */
+.oil-bloom-panel--roomy {
+  width: min(94vw, 36rem);
+  max-height: min(92dvh, 40rem);
+  animation:
+    oil-bloom-open-roomy 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both,
+    oil-sheen 4s ease-in-out 1.1s infinite alternate;
+}
+
+.oil-modal-content {
+  animation: scent-fade-up 0.35s ease-out 0.95s both;
+}
+
+.oil-bloom-panel--roomy .oil-modal-content {
+  max-height: min(92dvh, 40rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@keyframes oil-pour-stream {
+  0% {
+    opacity: 0;
+    transform: scaleY(0);
+  }
+  35% {
+    opacity: 0.9;
+    transform: scaleY(1);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes oil-surface-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.preference-vial {
+  position: relative;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 9.5rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(212, 175, 88, 0.35);
+  background: linear-gradient(
+    180deg,
+    rgba(245, 237, 224, 0.06),
+    rgba(5, 5, 5, 0.55)
+  );
+  overflow: hidden;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45);
+}
+
+@media (min-width: 640px) {
+  .preference-vial {
+    width: 3.25rem;
+    height: 11rem;
+  }
+}
+
+.preference-vial-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 236, 186, 0.95) 0%,
+    #e8c872 18%,
+    #d4af58 55%,
+    #7a5a22 100%
+  );
+  background-size: 100% 200%;
+  transition: height 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  box-shadow: 0 -6px 18px rgba(212, 175, 88, 0.35);
+}
+
+.preference-vial-fill.is-pouring {
+  animation: oil-surface-shimmer 1.2s ease-in-out infinite alternate;
+}
+
+.preference-vial-pour {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 3px;
+  height: 28%;
+  transform-origin: top center;
+  transform: translateX(-50%) scaleY(0);
+  border-radius: 9999px;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 236, 186, 0.95),
+    rgba(212, 175, 88, 0.15)
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+.preference-vial-pour.is-active {
+  animation: oil-pour-stream 0.55s ease-out forwards;
+}
+
+.preference-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  /* Tall hit area (WCAG 2.5.5 target size) with thinner visual track */
+  height: var(--space-touch);
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+.preference-range::-webkit-slider-runnable-track {
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    rgba(224, 117, 117, 0.45),
+    rgba(184, 170, 152, 0.3) 50%,
+    rgba(212, 175, 88, 0.65)
+  );
+}
+
+.preference-range::-moz-range-track {
+  height: 0.75rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    90deg,
+    rgba(224, 117, 117, 0.45),
+    rgba(184, 170, 152, 0.3) 50%,
+    rgba(212, 175, 88, 0.65)
+  );
+}
+
+.preference-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: calc((0.75rem - 1.75rem) / 2);
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #f5e6c0, #d4af58 55%, #8a6a2a);
+  border: 2px solid rgba(245, 237, 224, 0.45);
+  box-shadow: 0 0 0 4px rgba(212, 175, 88, 0.22);
+  cursor: grab;
+}
+
+.preference-range::-moz-range-thumb {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 35% 30%, #f5e6c0, #d4af58 55%, #8a6a2a);
+  border: 2px solid rgba(245, 237, 224, 0.45);
+  box-shadow: 0 0 0 4px rgba(212, 175, 88, 0.22);
+  cursor: grab;
+}
+
+.preference-range:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+  border-radius: 0.5rem;
+}
+
+.preference-range:focus-visible::-webkit-slider-thumb {
+  box-shadow:
+    0 0 0 4px rgba(212, 175, 88, 0.22),
+    0 0 0 6px var(--focus-ring-offset),
+    0 0 0 9px var(--focus-ring);
+}
+
+.preference-range:focus-visible::-moz-range-thumb {
+  box-shadow:
+    0 0 0 4px rgba(212, 175, 88, 0.22),
+    0 0 0 6px var(--focus-ring-offset),
+    0 0 0 9px var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oil-drop-stage,
+  .oil-ripple,
+  .oil-bloom-panel,
+  .oil-modal-content {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    width: min(92vw, 26rem) !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 1rem !important;
+  }
+
+  .oil-bloom-panel--roomy {
+    width: min(94vw, 36rem) !important;
+    max-height: min(92dvh, 40rem) !important;
+  }
+
+  .oil-drop-stage,
+  .oil-ripple {
+    display: none;
+  }
+
+  .preference-vial-fill {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .preference-vial-pour,
+  .preference-vial-pour.is-active {
+    display: none;
+  }
+}
+

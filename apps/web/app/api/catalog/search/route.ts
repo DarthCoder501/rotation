@@ -1,10 +1,12 @@
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import { NextRequest, NextResponse } from "next/server";
+import { buildCatalogSearchPatterns, rankCatalogRows } from "@/lib/catalog-search";
 import {
   fragranceSelect,
   mapFragrance,
   type FragranceRow,
 } from "@/lib/server/fragrance-mapper";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 
 const MIN_QUERY_LENGTH = 2;
 
@@ -18,46 +20,58 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const pattern = `%${q}%`;
+  const patterns = buildCatalogSearchPatterns(q);
 
   const baseQuery = () =>
     supabaseAdmin
       .from("fragrances")
       .select(fragranceSelect)
       .order("rating_value", { ascending: false })
-      .limit(25);
+      .limit(40);
 
-  const [byPerfume, byBrand] = await Promise.all([
-    baseQuery().ilike("perfume", pattern),
-    baseQuery().ilike("brand", pattern),
-  ]);
+  try {
+    const lookups = await Promise.all(
+      patterns.flatMap((pattern) => [
+        baseQuery().ilike("perfume", pattern),
+        baseQuery().ilike("brand", pattern),
+      ]),
+    );
 
-  if (byPerfume.error || byBrand.error) {
+    const firstError = lookups.find((result) => result.error)?.error;
+    if (firstError) {
+      return NextResponse.json(
+        {
+          results: [],
+          message: toUserFacingMessage(
+            firstError.message,
+            "Search is unavailable right now. Try again in a moment.",
+          ),
+        },
+        { status: 500 },
+      );
+    }
+
+    const rowsById = new Map<number, FragranceRow>();
+    for (const result of lookups) {
+      for (const row of (result.data ?? []) as FragranceRow[]) {
+        rowsById.set(Number(row.id), row);
+      }
+    }
+
+    const ranked = rankCatalogRows(q, [...rowsById.values()], 25);
+    const results = ranked.map(mapFragrance);
+
+    return NextResponse.json({ results });
+  } catch (error) {
     return NextResponse.json(
       {
         results: [],
-        message:
-          byPerfume.error?.message ??
-          byBrand.error?.message ??
-          "Failed to search catalog.",
+        message: toUserFacingMessage(
+          error,
+          "Search is unavailable right now. Try again in a moment.",
+        ),
       },
       { status: 500 },
     );
   }
-
-  const rowsById = new Map<number, FragranceRow>();
-
-  for (const row of [
-    ...((byPerfume.data ?? []) as FragranceRow[]),
-    ...((byBrand.data ?? []) as FragranceRow[]),
-  ]) {
-    rowsById.set(Number(row.id), row);
-  }
-
-  const results = [...rowsById.values()]
-    .sort((a, b) => b.rating_value - a.rating_value)
-    .slice(0, 25)
-    .map(mapFragrance);
-
-  return NextResponse.json({ results });
 }

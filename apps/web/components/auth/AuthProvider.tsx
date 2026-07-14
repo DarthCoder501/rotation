@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -20,7 +21,7 @@ type SessionState = {
   profileId: string | null;
   profile: UserProfile;
   loading: boolean;
-  refresh: () => Promise<void>;
+  refresh: (options?: { silent?: boolean }) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -33,34 +34,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
   const [loading, setLoading] = useState(true);
+  const refreshInFlight = useRef<Promise<void> | null>(null);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/auth/session", { cache: "no-store" });
-      if (!response.ok) {
-        throw new Error("Failed to load session");
+  const refresh = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = options?.silent === true;
+
+    if (refreshInFlight.current) {
+      await refreshInFlight.current;
+      return;
+    }
+
+    const run = (async () => {
+      // Only blank the UI on the first load — focus/token events must stay silent
+      // or maximize/minimize re-triggers a full-page loading state.
+      if (!silent) setLoading(true);
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("Failed to load session");
+        }
+
+        const data = (await response.json()) as {
+          isAuthenticated: boolean;
+          email: string | null;
+          profileId: string;
+          profile: UserProfile;
+        };
+
+        setIsAuthenticated(data.isAuthenticated);
+        setEmail(data.email);
+        setProfileId(data.profileId);
+        setProfile(data.profile ?? EMPTY_PROFILE);
+        await hydrateRankerWeights(data.profileId);
+      } catch {
+        setIsAuthenticated(false);
+        setEmail(null);
+        setProfileId(null);
+        setProfile(EMPTY_PROFILE);
+      } finally {
+        setLoading(false);
       }
+    })();
 
-      const data = (await response.json()) as {
-        isAuthenticated: boolean;
-        email: string | null;
-        profileId: string;
-        profile: UserProfile;
-      };
-
-      setIsAuthenticated(data.isAuthenticated);
-      setEmail(data.email);
-      setProfileId(data.profileId);
-      setProfile(data.profile ?? EMPTY_PROFILE);
-      await hydrateRankerWeights(data.profileId);
-    } catch {
-      setIsAuthenticated(false);
-      setEmail(null);
-      setProfileId(null);
-      setProfile(EMPTY_PROFILE);
+    refreshInFlight.current = run;
+    try {
+      await run;
     } finally {
-      setLoading(false);
+      refreshInFlight.current = null;
     }
   }, []);
 
@@ -70,8 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void refresh();
+    } = supabase.auth.onAuthStateChange((event) => {
+      // Initial session is already covered by the mount refresh above.
+      if (event === "INITIAL_SESSION") return;
+      // Window focus / token refresh after minimize must not flip loading.
+      void refresh({ silent: true });
     });
 
     return () => subscription.unsubscribe();

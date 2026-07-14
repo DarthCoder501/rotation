@@ -1,7 +1,12 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { buildMCPContext } from "./build-mcp-context";
 import { extractFeatureVector, FEATURE_DIM } from "./feature-vector";
-import { FragranceRanker, MIN_RATING, TOP_K } from "./fragrance-ranker";
+import {
+  FragranceRanker,
+  MIN_RATING,
+  TOP_K,
+  recommendationOptionCount,
+} from "./fragrance-ranker";
 import {
   clearLegacyWeights,
   clearWeights,
@@ -68,6 +73,13 @@ describe("FragranceRanker", () => {
     clearLegacyWeights();
   });
 
+  it("scales recommendation option count with collection size", () => {
+    expect(recommendationOptionCount(1)).toBe(1);
+    expect(recommendationOptionCount(3)).toBe(2);
+    expect(recommendationOptionCount(8)).toBe(3);
+    expect(recommendationOptionCount(25)).toBe(5);
+  });
+
   it("excludes fragrances rated below MIN_RATING", () => {
     const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const lowRated = makeFragrance({
@@ -119,6 +131,33 @@ describe("FragranceRanker", () => {
     expect(ranked[0]?.perfume).toBe("Good");
   });
 
+  it("recordPreference scales continuous affinity into weights", () => {
+    const liked = makeFragrance({
+      id: 1,
+      perfume: "Liked",
+      brand: "Lattafa",
+      mainAccord1: "vanilla",
+      ratingValue: 4.6,
+    });
+    const similar = makeFragrance({
+      id: 2,
+      perfume: "Similar",
+      brand: "Other",
+      mainAccord1: "vanilla",
+      ratingValue: 4.4,
+    });
+
+    const mild = new FragranceRanker(`${TEST_PROFILE_ID}-mild`);
+    mild.recordPreference(liked, vanillaProfile, 75);
+    const mildScore = mild.score(similar, vanillaProfile);
+
+    const strong = new FragranceRanker(`${TEST_PROFILE_ID}-strong`);
+    strong.recordPreference(liked, vanillaProfile, 100);
+    const strongScore = strong.score(similar, vanillaProfile);
+
+    expect(strongScore).toBeGreaterThan(mildScore);
+  });
+
   it("recordFeedback increases score for similar fragrances", () => {
     const liked = makeFragrance({
       id: 1,
@@ -145,7 +184,7 @@ describe("FragranceRanker", () => {
     const ranker = new FragranceRanker(TEST_PROFILE_ID);
     const before = ranker.score(similar, vanillaProfile);
 
-    ranker.recordFeedback(liked, vanillaProfile, 1);
+    ranker.recordPreference(liked, vanillaProfile, 100);
 
     expect(ranker.score(similar, vanillaProfile)).toBeGreaterThan(before);
     expect(ranker.score(different, vanillaProfile)).toBeLessThanOrEqual(
@@ -186,7 +225,7 @@ describe("FragranceRanker", () => {
     });
 
     const ranker = new FragranceRanker(TEST_PROFILE_ID);
-    ranker.recordFeedback(row, vanillaProfile, 1);
+    ranker.recordPreference(row, vanillaProfile, 100);
 
     expect(
       globalThis.localStorage.getItem(weightsStorageKey(TEST_PROFILE_ID)),
@@ -248,6 +287,8 @@ describe("buildMCPContext", () => {
     });
 
     expect(context.shortlist).toHaveLength(1);
+    expect(context.preferenceModel.scale).toBe("0-100");
+    expect(context.preferenceModel.anchors.love).toBe(100);
     expect(context.shortlist[0]).toMatchObject({
       rank: 1,
       score: 1.25,

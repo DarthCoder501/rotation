@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { FEATURE_DIM } from "@/lib/ranker/feature-vector";
 import { resolveAppProfile } from "@/lib/server/app-profile";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 
 export async function GET() {
   try {
@@ -15,10 +16,10 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load ranker weights",
+        message: toUserFacingMessage(
+          error,
+          "Failed to load ranker weights",
+        ),
       },
       { status: 500 },
     );
@@ -65,10 +66,65 @@ export async function PUT(req: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to save ranker weights",
+        message: toUserFacingMessage(
+          error,
+          "Failed to save ranker weights",
+        ),
+      },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * DELETE /api/profile/ranker-weights — reset learned weights to zero locally sync'd.
+ */
+export async function DELETE() {
+  try {
+    const appProfile = await resolveAppProfile();
+    const now = new Date().toISOString();
+    const zeros = Array.from({ length: FEATURE_DIM }, () => 0);
+
+    const { error } = await supabaseAdmin
+      .from("user_profiles")
+      .update({
+        ranker_weights: zeros,
+        ranker_weights_updated_at: now,
+      })
+      .eq("id", appProfile.id);
+
+    if (error) {
+      // If auth columns missing, still succeed client-side reset.
+      if (
+        error.message?.toLowerCase().includes("does not exist") ||
+        error.message?.toLowerCase().includes("ranker_weights")
+      ) {
+        return NextResponse.json({
+          ok: true,
+          updatedAt: now,
+          localOnly: true,
+        });
+      }
+
+      return NextResponse.json(
+        {
+          message: toUserFacingMessage(
+            error.message,
+            "Could not clear learned preferences on the server.",
+          ),
+        },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json({ ok: true, updatedAt: now, weights: zeros });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message: toUserFacingMessage(
+          error,
+          "Could not clear learned preferences.",
+        ),
       },
       { status: 500 },
     );

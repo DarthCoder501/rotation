@@ -1,11 +1,6 @@
 "use client";
-import dynamic from "next/dynamic";
 import { BottomNav } from "./BottomNav";
-
-const LiquidCanvas = dynamic(
-  () => import("../LiquidCanvas").then((m) => m.LiquidCanvas),
-  { ssr: false },
-);
+import { LiquidCanvas } from "../LiquidCanvas";
 
 export function AppShell({
   children,
@@ -16,7 +11,7 @@ export function AppShell({
 }) {
   return (
     <>
-      <LiquidCanvas /> {/* z-0 fixed inset-0 */}
+      <LiquidCanvas />
       <div className="relative z-10 min-h-dvh pb-[calc(64px+env(safe-area-inset-bottom))]">
         {children}
       </div>

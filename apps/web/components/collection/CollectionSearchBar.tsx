@@ -40,13 +40,13 @@ export function CollectionSearchBar({
         readOnly={Boolean(href)}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
-        className="h-12 w-full rounded-md border border-(--glass-border) bg-(--glass-bg) pl-11 pr-10 text-(--text-primary) placeholder:text-(--text-secondary) backdrop-blur-(--glass-blur) focus:border-(--accent-gold) min-h-(--space-touch)"
+        className="h-12 w-full rounded-md border border-(--glass-border) bg-(--glass-bg) pl-11 pr-10 text-(--text-primary) placeholder:text-(--text-secondary) backdrop-blur-(--glass-blur) focus:border-(--accent-gold) min-h-(--space-touch) [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none"
       />
       {value.length > 0 && !href && (
         <button
           type="button"
           onClick={() => onChange("")}
-          className="absolute right-3 flex h-8 w-8 items-center justify-center rounded-full text-(--text-secondary) hover:text-(--text-primary) focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+          className="absolute right-3 flex h-8 w-8 items-center justify-center rounded-full text-(--accent-gold) hover:text-(--accent-gold-hover) focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
           aria-label="Clear search"
         >
           ×

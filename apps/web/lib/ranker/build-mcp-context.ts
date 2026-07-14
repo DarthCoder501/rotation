@@ -5,6 +5,18 @@ import type {
   UserProfile,
 } from "./types";
 
+export const DEFAULT_PREFERENCE_MODEL: MCPRecommendContext["preferenceModel"] =
+  {
+    scale: "0-100",
+    anchors: {
+      dislike: 0,
+      softDislike: 25,
+      neutral: 50,
+      like: 75,
+      love: 100,
+    },
+  };
+
 export function buildMCPContext(params: {
   userActivity: string;
   weather: MCPRecommendContext["weather"];
@@ -15,6 +27,7 @@ export function buildMCPContext(params: {
     userActivity: params.userActivity,
     weather: params.weather,
     profile: params.profile,
+    preferenceModel: DEFAULT_PREFERENCE_MODEL,
     shortlist: params.shortlist.map((fragrance, index) => ({
       rank: index + 1,
       score: fragrance.score,

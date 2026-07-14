@@ -21,12 +21,19 @@ export async function fetchCollection(): Promise<CollectionResponse> {
 
 /**
  * Add a fragrance from the source catalog to the user's collection.
+ * @param affinity optional 0–100 like rating captured at add time
  */
-export async function addToCollection(fragranceId: number): Promise<void> {
+export async function addToCollection(
+  fragranceId: number,
+  affinity?: number,
+): Promise<void> {
   const res = await fetch("/api/collection", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fragranceId }),
+    body: JSON.stringify({
+      fragranceId,
+      ...(typeof affinity === "number" ? { affinity } : {}),
+    }),
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));

@@ -75,10 +75,18 @@ export async function POST(req: NextRequest) {
   }
 
   const fragranceId = getFragranceId(body);
+  const affinity = getAffinity(body);
 
   if (!Number.isInteger(fragranceId) || fragranceId <= 0) {
     return NextResponse.json(
       { message: "fragranceId must be a positive integer." },
+      { status: 400 },
+    );
+  }
+
+  if (affinity !== null && (affinity < 0 || affinity > 100)) {
+    return NextResponse.json(
+      { message: "affinity must be between 0 and 100." },
       { status: 400 },
     );
   }
@@ -108,15 +116,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 404 });
     }
 
-    const { error: upsertError } = await supabaseAdmin
+    const payload: Record<string, unknown> = {
+      user_id: profile.id,
+      fragrance_id: fragranceId,
+    };
+    if (affinity !== null) {
+      payload.affinity = affinity;
+    }
+
+    let { error: upsertError } = await supabaseAdmin
       .from("collection_items")
-      .upsert(
+      .upsert(payload, { onConflict: "user_id,fragrance_id" });
+
+    // Affinity column may not exist until migration 003 — retry without it.
+    if (
+      upsertError &&
+      affinity !== null &&
+      /affinity|column/i.test(upsertError.message)
+    ) {
+      const retry = await supabaseAdmin.from("collection_items").upsert(
         {
           user_id: profile.id,
           fragrance_id: fragranceId,
         },
         { onConflict: "user_id,fragrance_id" },
       );
+      upsertError = retry.error;
+    }
 
     if (upsertError) {
       return NextResponse.json(
@@ -130,7 +156,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    return NextResponse.json({ ok: true, fragranceId }, { status: 201 });
+    return NextResponse.json(
+      { ok: true, fragranceId, affinity },
+      { status: 201 },
+    );
   } catch (error) {
     return NextResponse.json(
       {
@@ -150,6 +179,15 @@ function getFragranceId(body: unknown): number {
   }
 
   return Number((body as { fragranceId: unknown }).fragranceId);
+}
+
+function getAffinity(body: unknown): number | null {
+  if (!body || typeof body !== "object" || !("affinity" in body)) {
+    return null;
+  }
+  const value = Number((body as { affinity: unknown }).affinity);
+  if (!Number.isFinite(value)) return null;
+  return Math.round(value);
 }
 
 function normalizeFragrance(

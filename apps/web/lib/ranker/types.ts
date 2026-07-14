@@ -26,6 +26,17 @@ export interface MCPRecommendContext {
   userActivity: string;
   weather: { tempC: number; condition: string; humidity: number };
   profile: UserProfile;
+  /** Continuous 0–100 affinity model used by the client ranker. */
+  preferenceModel: {
+    scale: "0-100";
+    anchors: {
+      dislike: 0;
+      softDislike: 25;
+      neutral: 50;
+      like: 75;
+      love: 100;
+    };
+  };
   shortlist: Array<{
     rank: number;
     score: number;

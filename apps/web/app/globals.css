@@ -1,5 +1,25 @@
 @import "../styles/tokens.css";
+@import "../styles/recommend-motion.css";
 @import "tailwindcss";
+
+.liquid-canvas {
+  background:
+    radial-gradient(
+      ellipse at 18% 0%,
+      color-mix(in srgb, var(--accent-gold) 8%, transparent),
+      transparent 48%
+    ),
+    linear-gradient(
+      135deg,
+      var(--bg-canvas),
+      var(--bg-canvas-mid) 55%,
+      var(--bg-canvas-end)
+    );
+}
+
+html {
+  background-color: var(--bg-deep);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

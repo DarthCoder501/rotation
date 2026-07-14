@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { AffinityCaptureModal } from "@/components/collection/AffinityCaptureModal";
 import { AppShell } from "@/components/shell/AppShell";
 import { CollectionSearchBar } from "@/components/collection/CollectionSearchBar";
 import {
@@ -13,22 +15,31 @@ import {
 import { searchCatalog } from "@/lib/api/catalog-client";
 import { addToCollection, fetchCollection } from "@/lib/api/collection-client";
 import { cacheCollection } from "@/lib/collection-cache";
+import { saveAffinity } from "@/lib/ranker/affinity-store";
+import { FragranceRanker } from "@/lib/ranker/fragrance-ranker";
 import type { Fragrance } from "@/lib/types/fragrance";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY = 2;
 
 export function CatalogSearchPageClient() {
+  const { profileId, profile } = useAuth();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [results, setResults] = useState<Fragrance[]>([]);
   const [ownedIds, setOwnedIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [addingId, setAddingId] = useState<number | null>(null);
+  const [pendingFragrance, setPendingFragrance] = useState<Fragrance | null>(
+    null,
+  );
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
-    const t = window.setTimeout(() => setDebouncedQuery(query.trim()), DEBOUNCE_MS);
+    const t = window.setTimeout(
+      () => setDebouncedQuery(query.trim()),
+      DEBOUNCE_MS,
+    );
     return () => window.clearTimeout(t);
   }, [query]);
 
@@ -37,7 +48,7 @@ export function CatalogSearchPageClient() {
       const { items } = await fetchCollection();
       setOwnedIds(new Set(items.map((f) => f.id)));
     } catch {
-      /* collection API may still be a stub */
+      /* ignore */
     }
   }, []);
 
@@ -45,7 +56,6 @@ export function CatalogSearchPageClient() {
     const timeoutId = window.setTimeout(() => {
       void loadOwned();
     }, 0);
-
     return () => window.clearTimeout(timeoutId);
   }, [loadOwned]);
 
@@ -73,21 +83,27 @@ export function CatalogSearchPageClient() {
     const timeoutId = window.setTimeout(() => {
       void runSearch(debouncedQuery);
     }, 0);
-
     return () => window.clearTimeout(timeoutId);
   }, [debouncedQuery, runSearch]);
 
-  async function handleAdd(fragrance: Fragrance) {
-    setAddingId(fragrance.id);
+  async function handleConfirmAffinity(affinity: number) {
+    if (!pendingFragrance) return;
+    setAdding(true);
     try {
-      await addToCollection(fragrance.id);
-      setOwnedIds((prev) => new Set(prev).add(fragrance.id));
+      await addToCollection(pendingFragrance.id, affinity);
+      if (profileId) {
+        saveAffinity(profileId, pendingFragrance.id, affinity);
+        const ranker = new FragranceRanker(profileId);
+        ranker.recordPreference(pendingFragrance, profile, affinity);
+      }
+      setOwnedIds((prev) => new Set(prev).add(pendingFragrance.id));
       const { items } = await fetchCollection();
       await cacheCollection(items);
+      setPendingFragrance(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not add to collection");
     } finally {
-      setAddingId(null);
+      setAdding(false);
     }
   }
 
@@ -125,17 +141,23 @@ export function CatalogSearchPageClient() {
         <p className="mt-2 text-xs text-(--text-secondary)">
           {query.length > 0 && query.length < MIN_QUERY
             ? `Type ${MIN_QUERY - query.length} more character${MIN_QUERY - query.length === 1 ? "" : "s"}…`
-            : "Search by fragrance name or brand"}
+            : "Search by fragrance name or brand — spaces and hyphens both work"}
         </p>
 
         <div className="mt-4">
           {loading && <SearchLoadingState />}
           {!loading && error && (
-            <SearchErrorState message={error} onRetry={() => runSearch(debouncedQuery)} />
+            <SearchErrorState
+              message={error}
+              onRetry={() => runSearch(debouncedQuery)}
+            />
           )}
-          {!loading && !error && debouncedQuery.length >= MIN_QUERY && results.length === 0 && (
-            <EmptySearchState query={debouncedQuery} />
-          )}
+          {!loading &&
+            !error &&
+            debouncedQuery.length >= MIN_QUERY &&
+            results.length === 0 && (
+              <EmptySearchState query={debouncedQuery} />
+            )}
           {!loading && !error && results.length > 0 && (
             <ul
               id="catalog-search-results"
@@ -148,8 +170,8 @@ export function CatalogSearchPageClient() {
                   <FragranceSearchResult
                     fragrance={f}
                     isOwned={ownedIds.has(f.id)}
-                    isAdding={addingId === f.id}
-                    onAdd={() => handleAdd(f)}
+                    isAdding={adding && pendingFragrance?.id === f.id}
+                    onAdd={() => setPendingFragrance(f)}
                   />
                 </li>
               ))}
@@ -157,6 +179,16 @@ export function CatalogSearchPageClient() {
           )}
         </div>
       </div>
+
+      <AffinityCaptureModal
+        open={pendingFragrance != null}
+        fragrance={pendingFragrance}
+        busy={adding}
+        onClose={() => {
+          if (!adding) setPendingFragrance(null);
+        }}
+        onConfirm={(affinity) => void handleConfirmAffinity(affinity)}
+      />
     </AppShell>
   );
 }

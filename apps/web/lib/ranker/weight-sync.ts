@@ -3,6 +3,7 @@
 import { FEATURE_DIM } from "./feature-vector";
 import {
   clearLegacyWeights,
+  clearWeights,
   loadLegacyWeights,
   loadWeights,
   migrateWeightsStorage,
@@ -89,6 +90,15 @@ export async function hydrateRankerWeights(
   } catch {
     return local;
   }
+}
+
+export async function clearLearnedPreferencesLocal(
+  profileId: string,
+): Promise<void> {
+  const zeros = new Float32Array(FEATURE_DIM);
+  clearWeights(profileId);
+  saveWeights(profileId, zeros);
+  setLocalUpdatedAt(profileId, new Date().toISOString());
 }
 
 export function queueRankerWeightSync(

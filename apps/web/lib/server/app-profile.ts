@@ -34,13 +34,17 @@ export async function resolveAppProfile(): Promise<ResolvedAppProfile> {
   } = await supabase.auth.getUser();
 
   if (user) {
-    return resolveAuthenticatedProfile(user.id, user.email ?? null);
+    return ensureAuthenticatedProfile(user.id, user.email ?? null);
   }
 
   return resolveAnonymousProfile();
 }
 
-async function resolveAuthenticatedProfile(
+/**
+ * Link/create an app profile for a known auth user.
+ * Prefer this after OAuth code exchange — cookies may not be readable yet in the same request.
+ */
+export async function ensureAuthenticatedProfile(
   authUserId: string,
   email: string | null,
 ): Promise<ResolvedAppProfile> {
@@ -107,15 +111,22 @@ async function getDeviceIdFromCookie(): Promise<string | null> {
 }
 
 async function upsertDeviceProfile(deviceId: string): Promise<AppProfileRow> {
+  // Select-or-insert: PostgREST onConflict can't target our partial unique index on device_id.
+  const existing = await getProfileByDeviceId(deviceId);
+  if (existing) return existing;
+
   const { data, error } = await queryProfileRow((columns) =>
     supabaseAdmin
       .from("user_profiles")
-      .upsert({ device_id: deviceId }, { onConflict: "device_id" })
+      .insert({ device_id: deviceId, profile: defaultProfileJson })
       .select(columns)
       .single(),
   );
 
   if (error || !data) {
+    // Concurrent create: another request may have inserted the same device_id.
+    const raced = await getProfileByDeviceId(deviceId);
+    if (raced) return raced;
     throw new Error(`Failed to load user profile: ${error?.message}`);
   }
 

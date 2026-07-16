@@ -5,10 +5,15 @@
   --bg-canvas-mid: #121110; /* warm obsidian mid-tone */
   --bg-canvas-end: #1a1814; /* amber-kissed depth */
 
-  /* Glass — warm champagne frost */
-  --glass-bg: rgba(245, 237, 224, 0.04);
-  --glass-border: rgba(212, 175, 110, 0.16);
-  --glass-blur: 20px;
+  /*
+   * Glass — frosted look WITHOUT backdrop-filter.
+   * Blur is extremely expensive when browser GPU acceleration is off (Arc).
+   * Opaque warm panels keep the same visual language at 60fps.
+   */
+  --glass-bg: rgba(28, 25, 22, 0.92);
+  --glass-bg-highlight: rgba(245, 237, 224, 0.06);
+  --glass-border: rgba(212, 175, 110, 0.18);
+  --glass-blur: 0px;
 
   /* Champagne text */
   --text-primary: #f5ede0; /* 17.5:1 on --bg-deep ✓ AAA */

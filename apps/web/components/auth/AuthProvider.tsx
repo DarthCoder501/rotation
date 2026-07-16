@@ -65,13 +65,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setEmail(data.email);
         setProfileId(data.profileId);
         setProfile(data.profile ?? EMPTY_PROFILE);
-        await hydrateRankerWeights(data.profileId);
+        // Unblock UI immediately — weight sync can finish in the background.
+        setLoading(false);
+        void hydrateRankerWeights(data.profileId);
       } catch {
         setIsAuthenticated(false);
         setEmail(null);
         setProfileId(null);
         setProfile(EMPTY_PROFILE);
+        setLoading(false);
       } finally {
+        // loading already cleared above; keep finally for safety if early throw
         setLoading(false);
       }
     })();

@@ -108,7 +108,7 @@ export function OtherActivityModal({
     const focusTimer = window.setTimeout(() => {
       inputRef.current?.focus();
       resizeTextarea(inputRef.current);
-    }, 950);
+    }, 120);
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -140,7 +140,7 @@ export function OtherActivityModal({
       <button
         type="button"
         aria-label="Close activity dialog"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/75"
         onClick={onClose}
       />
 

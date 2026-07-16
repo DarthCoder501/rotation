@@ -18,7 +18,8 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Main navigation"
-      className="fixed bottom-0 inset-x-0 z-20 h-16 pb-[env(safe-area-inset-bottom)] bg-(--bg-deep)/80 backdrop-blur-xl border-t border-(--glass-border)"
+      className="fixed bottom-0 inset-x-0 z-20 h-16 border-t border-(--glass-border) pb-[env(safe-area-inset-bottom)]"
+      style={{ backgroundColor: "rgba(5, 5, 5, 0.96)" }}
     >
       <ul className="flex h-full">
         {TABS.map((tab) => (

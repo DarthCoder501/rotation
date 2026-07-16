@@ -31,12 +31,32 @@ import {
   cacheCollection,
   getCachedCollection,
 } from "@/lib/collection-cache";
+import { resolveCoordsQuickly } from "@/lib/geo";
 import type { Fragrance } from "@/lib/types/fragrance";
 
 type FlowState = "boot" | "loading" | "ready" | "offline" | "empty" | "error";
 
 const DEFAULT_ACTIVITY = "Relax";
-const DEFAULT_COORDS = { lat: 40.7128, lon: -74.006 };
+const WEATHER_CACHE_KEY = "scent_last_weather";
+
+function readCachedWeather(): WeatherResult | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as WeatherResult;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedWeather(weather: WeatherResult): void {
+  try {
+    sessionStorage.setItem(WEATHER_CACHE_KEY, JSON.stringify(weather));
+  } catch {
+    /* ignore */
+  }
+}
 
 export function RecommendFlow() {
   const router = useRouter();
@@ -128,30 +148,31 @@ export function RecommendFlow() {
         const shortlist = ranked.slice(0, optionCount);
         setOptions(shortlist);
 
-        let coords = DEFAULT_COORDS;
-        if (typeof navigator !== "undefined" && navigator.geolocation) {
-          coords = await new Promise<{ lat: number; lon: number }>((resolve) => {
-            navigator.geolocation.getCurrentPosition(
-              (position) =>
-                resolve({
-                  lat: position.coords.latitude,
-                  lon: position.coords.longitude,
-                }),
-              () => resolve(DEFAULT_COORDS),
-              { timeout: 4000, maximumAge: 600_000 },
-            );
-          });
-        }
+        // Paint options immediately with cached/default weather + local narrative.
+        // Gemini + live weather upgrade in the background (no geo wait).
+        const coords = resolveCoordsQuickly();
+        const cachedWeather = readCachedWeather() ?? {
+          tempC: 20,
+          condition: "Unknown",
+          humidity: 50,
+        };
+        setWeather(cachedWeather);
 
-        let weatherResult: WeatherResult;
+        const provisionalContext = buildMCPContext({
+          userActivity: activityLabel,
+          weather: cachedWeather,
+          profile: taste,
+          shortlist,
+        });
+        setRecommendation(fallbackRecommendation(provisionalContext));
+        setState("ready");
+
+        let weatherResult: WeatherResult = cachedWeather;
         try {
           weatherResult = await callMCPTool("get_weather", coords);
+          writeCachedWeather(weatherResult);
         } catch {
-          weatherResult = {
-            tempC: 20,
-            condition: "Unknown",
-            humidity: 50,
-          };
+          /* keep cached */
         }
         if (runId !== runIdRef.current) return;
         setWeather(weatherResult);
@@ -207,7 +228,7 @@ export function RecommendFlow() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       void runRecommend(nextActivity);
-    }, 500);
+    }, 220);
   }
 
   function handlePreset(next: (typeof PRESET_ACTIVITIES)[number]) {

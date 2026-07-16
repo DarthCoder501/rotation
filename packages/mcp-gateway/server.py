@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 app = FastAPI(title="rotation-mcp-gateway", version="0.1.0")
 
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 WMO = {
     0: "Clear",

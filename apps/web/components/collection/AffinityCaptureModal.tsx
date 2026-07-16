@@ -99,7 +99,7 @@ export function AffinityCaptureModal({
       <button
         type="button"
         aria-label="Close liking dialog"
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/75"
         onClick={() => {
           if (!busy) onClose();
         }}

@@ -40,7 +40,7 @@ export function CollectionSearchBar({
         readOnly={Boolean(href)}
         autoFocus={autoFocus}
         onChange={(e) => onChange(e.target.value)}
-        className="h-12 w-full rounded-md border border-(--glass-border) bg-(--glass-bg) pl-11 pr-10 text-(--text-primary) placeholder:text-(--text-secondary) backdrop-blur-(--glass-blur) focus:border-(--accent-gold) min-h-(--space-touch) [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none"
+        className="glass-surface h-12 min-h-(--space-touch) w-full rounded-md border border-(--glass-border) pl-11 pr-10 text-(--text-primary) placeholder:text-(--text-secondary) focus:border-(--accent-gold) [&::-webkit-search-cancel-button]:appearance-none [&::-webkit-search-decoration]:appearance-none [&::-webkit-search-results-button]:appearance-none"
       />
       {value.length > 0 && !href && (
         <button

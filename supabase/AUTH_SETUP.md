@@ -1,18 +1,25 @@
 # Supabase Auth + Ranker Sync Setup
 
-Run these steps after deploying the app code. Google OAuth credentials are configured in the Supabase Dashboard (not in `.env`).
+Run these after deploying. Google OAuth is configured in the Supabase Dashboard (not `.env`).
+Full production checklist: [`apps/web/DEPLOY.md`](../apps/web/DEPLOY.md).
 
-## 1b. Optional affinity column (collection likes)
+## 1. Run the SQL migrations
 
-Also run `supabase/migrations/003_collection_affinity.sql` so "how much do you like it?" on add is stored server-side. The app keeps a local affinity cache either way.
+Open **Supabase Dashboard → SQL → New query**, paste and run:
 
+1. `supabase/migrations/001_init.sql` (if the project is new)
+2. `supabase/migrations/002_auth_and_ranker_weights.sql`
 
-Click **Run**. This adds:
+Migration `002` adds:
 
 - `auth_user_id` — links `user_profiles` to `auth.users`
 - `ranker_weights` / `ranker_weights_updated_at` — server backup for hybrid ranker sync
 - nullable `device_id` — anonymous users keep a device profile until sign-in
 - updated RLS policies for auth-aware access
+
+## 1b. Optional affinity column (collection likes)
+
+Also run `supabase/migrations/003_collection_affinity.sql` so "how much do you like it?" on add is stored server-side. The app keeps a local affinity cache either way.
 
 ## 2. Enable Google OAuth
 
@@ -24,15 +31,15 @@ Click **Run**. This adds:
 
 ## 3. Site URL (URL Configuration)
 
-Set **Site URL** to your primary app URL, e.g. `http://localhost:3000` for local dev.
+Set **Site URL** to your primary app URL (production domain, or `http://localhost:3000` for local).
 
 ## 4. Verify
 
 1. Start the app: `pnpm --filter web dev`
-2. Visit `/profile` — you should see **Continue with Google** while signed out
-3. Add fragrances to your collection anonymously
-4. Sign in with Google — collection should remain (device profile linked to auth)
-5. Sign in on a second device — collection and ranker weights should sync after login
+2. Visit `/api/health` — expect `{ "ok": true }`
+3. Visit `/profile` — **Continue with Google** while signed out
+4. Add fragrances anonymously, then sign in — collection should remain
+5. Second device after login — collection and ranker weights should sync
 
 ## Architecture choices implemented
 
@@ -59,4 +66,3 @@ VALUES (
 )
 ON CONFLICT (auth_user_id) DO NOTHING;
 ```
-

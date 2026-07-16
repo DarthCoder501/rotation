@@ -6,6 +6,7 @@ type MCPResponse<T> = {
   result: T;
   fallback?: boolean;
   message?: string;
+  code?: string;
 };
 
 /**
@@ -24,16 +25,25 @@ export async function callMCPTool<T extends MCPToolName>(
 
   const payload = (await response.json().catch(() => null)) as
     | MCPResponse<MCPToolResult[T]>
-    | { message?: string }
+    | { message?: string; code?: string }
     | null;
 
-  if (!response.ok || !payload || !("result" in payload)) {
+  // Successful tool result (including synthesize fallback with result body)
+  if (payload && "result" in payload && payload.result != null) {
+    return payload.result;
+  }
+
+  if (response.status === 429) {
     throw new Error(
       payload && "message" in payload && payload.message
         ? payload.message
-        : `MCP tool "${tool}" failed (${response.status})`,
+        : "Too many requests — please wait a moment.",
     );
   }
 
-  return payload.result;
+  throw new Error(
+    payload && "message" in payload && payload.message
+      ? payload.message
+      : `MCP tool "${tool}" failed (${response.status})`,
+  );
 }

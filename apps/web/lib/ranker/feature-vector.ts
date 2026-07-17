@@ -1,4 +1,5 @@
 import { getAccords } from "@/lib/types/fragrance";
+import { writeContextFeatures, type RankingContext } from "./context-features";
 import type { FragranceRow, UserProfile } from "./types";
 
 export const FEATURE_DIM = 32;
@@ -10,7 +11,9 @@ export const FEATURE_DIM = 32;
 // Index 22:      normalized rating_value
 // Index 23:      log-normalized rating_count
 // Index 24:      primary accord in liked set
-// Indices 25–31: reserved for weather/activity hooks
+// Indices 25–31: weather/activity × fragrance family hooks
+
+export type { RankingContext };
 
 export function normalize(value: string): string {
   return value.trim().toLowerCase();
@@ -19,12 +22,12 @@ export function normalize(value: string): string {
 export function extractFeatureVector(
   row: FragranceRow,
   profile: UserProfile,
+  context?: RankingContext,
 ): Float32Array {
   const x = new Float32Array(FEATURE_DIM);
   const accords = getAccords(row).map(normalize);
   const brand = normalize(row.brand);
   const likedAccords = profile.likedAccords.map(normalize);
-  const dislikedAccords = profile.dislikedAccords.map(normalize);
   const likedBrands = profile.likedBrands.map(normalize);
   const dislikedBrands = profile.dislikedBrands.map(normalize);
 
@@ -45,5 +48,6 @@ export function extractFeatureVector(
     x[24] = 1;
   }
 
+  writeContextFeatures(x, row, context);
   return x;
 }

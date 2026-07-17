@@ -1,4 +1,5 @@
 import type { MCPRecommendContext } from "@/lib/ranker/types";
+import { formatTemperature } from "@/lib/temperature";
 
 export function buildRecommendPrompt(ctx: MCPRecommendContext): string {
   const anchors = ctx.preferenceModel?.anchors ?? {
@@ -8,6 +9,9 @@ export function buildRecommendPrompt(ctx: MCPRecommendContext): string {
     like: 75,
     love: 100,
   };
+
+  const unit = ctx.tempUnit === "F" ? "F" : "C";
+  const tempLabel = formatTemperature(ctx.weather.tempC, unit);
 
   const blocks = ctx.shortlist
     .map(
@@ -24,7 +28,8 @@ export function buildRecommendPrompt(ctx: MCPRecommendContext): string {
 
 ## Context
 - Activity/Mood: ${ctx.userActivity}
-- Weather: ${ctx.weather.tempC}°C, ${ctx.weather.condition}, ${ctx.weather.humidity}% humidity
+- Weather: ${tempLabel}, ${ctx.weather.condition}, ${ctx.weather.humidity}% humidity
+- Temperature unit preference: ${unit === "F" ? "Fahrenheit" : "Celsius"} (use this unit if you mention temperature)
 - Explicit likes: ${ctx.profile.likedAccords.join(", ") || "none yet"}
 - Explicit dislikes: ${ctx.profile.dislikedAccords.join(", ") || "none yet"}
 
@@ -44,7 +49,7 @@ ${blocks}
 ## Instructions
 1. Pick the SINGLE best match for today's activity and weather from these candidates only.
 2. Prefer higher personalized ranker scores unless weather/activity clearly favors another shortlist entry.
-3. Write 2-3 evocative sentences — sensory, not salesy.
+3. Write 2-3 evocative sentences — sensory, not salesy. If you mention temperature, use ${unit === "F" ? "°F" : "°C"} (e.g. ${tempLabel}).
 4. Return valid JSON only:
 {
   "headline": "string (max 8 words)",

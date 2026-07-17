@@ -50,4 +50,6 @@ Enable **Google** under Authentication → Providers.
 
 - `/api/mcp` is rate-limited to **10 requests / minute / IP**
 - Ranker weights sync in the background after login (hybrid local + Supabase)
+- Ranker uses weather + activity features; strong likes also seed taste profile chips
+- Dev telemetry: open `/?debug=ranker` (or set `localStorage.scent_ranker_debug=1`)
 - Arc browser: if the window goes black on maximize, turn off hardware acceleration in `arc://settings/system` (known Arc GPU issue)

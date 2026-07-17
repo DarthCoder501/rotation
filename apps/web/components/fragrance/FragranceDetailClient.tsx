@@ -20,6 +20,7 @@ import {
 } from "@/lib/collection-cache";
 import { FragranceRanker } from "@/lib/ranker/fragrance-ranker";
 import { saveAffinity } from "@/lib/ranker/affinity-store";
+import { syncAffinityTasteProfile } from "@/lib/ranker/sync-affinity-taste";
 import {
   formatGender,
   getAccords,
@@ -34,7 +35,7 @@ export function FragranceDetailClient({
   fragranceId,
 }: FragranceDetailClientProps) {
   const router = useRouter();
-  const { profileId, profile } = useAuth();
+  const { profileId, profile, refresh } = useAuth();
 
   const [fragrance, setFragrance] = useState<Fragrance | null>(null);
   const [owned, setOwned] = useState(false);
@@ -83,6 +84,12 @@ export function FragranceDetailClient({
         profile,
         affinity,
       );
+      const saved = await syncAffinityTasteProfile(
+        profile,
+        fragrance,
+        affinity,
+      );
+      if (saved) await refresh({ silent: true });
 
       const cached = await getCachedCollection();
       const next =

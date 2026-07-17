@@ -14,6 +14,7 @@ import {
   RecommendationOption,
 } from "@/components/recommend/RecommendationCard";
 import { CandidateCarousel } from "@/components/recommend/CandidateCarousel";
+import { RankerDebugPanel } from "@/components/recommend/RankerDebugPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { fetchCollection } from "@/lib/api/collection-client";
 import { callMCPTool } from "@/lib/mcp-client";
@@ -21,10 +22,12 @@ import { fallbackRecommendation } from "@/lib/mcp/fallback";
 import type { RecommendationResult, WeatherResult } from "@/lib/mcp/types";
 import { loadAffinities } from "@/lib/ranker/affinity-store";
 import { buildMCPContext } from "@/lib/ranker/build-mcp-context";
+import type { RankingContext } from "@/lib/ranker/context-features";
 import {
   FragranceRanker,
   recommendationOptionCount,
 } from "@/lib/ranker/fragrance-ranker";
+import { syncAffinityTasteProfile } from "@/lib/ranker/sync-affinity-taste";
 import type { RankedFragrance, UserProfile } from "@/lib/ranker/types";
 import { EMPTY_PROFILE } from "@/lib/ranker/types";
 import {
@@ -32,6 +35,7 @@ import {
   getCachedCollection,
 } from "@/lib/collection-cache";
 import { resolveCoordsQuickly } from "@/lib/geo";
+import { useTempUnit } from "@/lib/temperature";
 import type { Fragrance } from "@/lib/types/fragrance";
 
 type FlowState = "boot" | "loading" | "ready" | "offline" | "empty" | "error";
@@ -60,7 +64,8 @@ function writeCachedWeather(weather: WeatherResult): void {
 
 export function RecommendFlow() {
   const router = useRouter();
-  const { profileId, profile, loading: authLoading } = useAuth();
+  const { profileId, profile, loading: authLoading, refresh } = useAuth();
+  const { unit: tempUnit } = useTempUnit();
 
   const [state, setState] = useState<FlowState>("boot");
   const [activity, setActivity] = useState(DEFAULT_ACTIVITY);
@@ -130,11 +135,26 @@ export function RecommendFlow() {
         const taste = profileRef.current ?? EMPTY_PROFILE;
         const affinities = loadAffinities(profileId);
         const optionCount = recommendationOptionCount(collection.length);
-        const ranked = ranker.rankAll(
+
+        const coords = resolveCoordsQuickly();
+        const cachedWeather = readCachedWeather() ?? {
+          tempC: 20,
+          condition: "Unknown",
+          humidity: 50,
+        };
+        setWeather(cachedWeather);
+
+        const rankingContext: RankingContext = {
+          activity: activityLabel,
+          weather: cachedWeather,
+        };
+
+        let ranked = ranker.rankAll(
           collection,
           taste,
           Math.max(optionCount, 5),
           affinities,
+          rankingContext,
         );
 
         if (ranked.length === 0) {
@@ -145,24 +165,15 @@ export function RecommendFlow() {
           return;
         }
 
-        const shortlist = ranked.slice(0, optionCount);
+        let shortlist = ranked.slice(0, optionCount);
         setOptions(shortlist);
-
-        // Paint options immediately with cached/default weather + local narrative.
-        // Gemini + live weather upgrade in the background (no geo wait).
-        const coords = resolveCoordsQuickly();
-        const cachedWeather = readCachedWeather() ?? {
-          tempC: 20,
-          condition: "Unknown",
-          humidity: 50,
-        };
-        setWeather(cachedWeather);
 
         const provisionalContext = buildMCPContext({
           userActivity: activityLabel,
           weather: cachedWeather,
           profile: taste,
           shortlist,
+          tempUnit,
         });
         setRecommendation(fallbackRecommendation(provisionalContext));
         setState("ready");
@@ -177,11 +188,26 @@ export function RecommendFlow() {
         if (runId !== runIdRef.current) return;
         setWeather(weatherResult);
 
+        const liveContext: RankingContext = {
+          activity: activityLabel,
+          weather: weatherResult,
+        };
+        ranked = ranker.rankAll(
+          collection,
+          taste,
+          Math.max(optionCount, 5),
+          affinities,
+          liveContext,
+        );
+        shortlist = ranked.slice(0, optionCount);
+        setOptions(shortlist);
+
         const context = buildMCPContext({
           userActivity: activityLabel,
           weather: weatherResult,
           profile: taste,
           shortlist,
+          tempUnit,
         });
 
         try {
@@ -207,7 +233,7 @@ export function RecommendFlow() {
         );
       }
     },
-    [profileId, resolveCollection, router],
+    [profileId, resolveCollection, router, tempUnit],
   );
 
   useEffect(() => {
@@ -260,6 +286,13 @@ export function RecommendFlow() {
           recommendation.selectedPerfume.toLowerCase(),
     ) ?? options[0] ?? null;
 
+  function currentRankingContext(): RankingContext {
+    return {
+      activity,
+      weather: weather ?? undefined,
+    };
+  }
+
   function applyChoice(
     option: RankedFragrance,
     mode: "choose" | "love" | "prefer" = "choose",
@@ -268,8 +301,9 @@ export function RecommendFlow() {
     setChoosing(true);
 
     const taste = profileRef.current;
+    const ctx = currentRankingContext();
     const strength = mode === "love" ? 100 : mode === "prefer" ? 85 : 100;
-    rankerRef.current.recordPreference(option, taste, strength);
+    rankerRef.current.recordPreference(option, taste, strength, ctx);
 
     for (const other of options) {
       if (other.id === option.id) continue;
@@ -278,8 +312,16 @@ export function RecommendFlow() {
         other,
         taste,
         mode === "prefer" ? 70 : 80,
+        ctx,
       );
     }
+
+    void syncAffinityTasteProfile(taste, option, strength).then((saved) => {
+      if (saved) {
+        profileRef.current = saved;
+        void refresh({ silent: true });
+      }
+    });
 
     setChosenId(option.id);
     setRecommendation((current) =>
@@ -316,7 +358,14 @@ export function RecommendFlow() {
     setChoosing(true);
 
     const taste = profileRef.current;
-    rankerRef.current.recordFeedback(featured, taste, -1);
+    const ctx = currentRankingContext();
+    rankerRef.current.recordFeedback(featured, taste, -1, ctx);
+    void syncAffinityTasteProfile(taste, featured, 0).then((saved) => {
+      if (saved) {
+        profileRef.current = saved;
+        void refresh({ silent: true });
+      }
+    });
 
     const remaining = options.filter((item) => item.id !== featured.id);
     setOptions(remaining);
@@ -359,12 +408,14 @@ export function RecommendFlow() {
     loser: RankedFragrance | null,
   ) {
     if (!rankerRef.current || choosing) return;
+    const ctx = currentRankingContext();
     if (loser) {
       rankerRef.current.recordPairwiseChoice(
         winner,
         loser,
         profileRef.current,
         80,
+        ctx,
       );
     }
     applyChoice(winner, "prefer");
@@ -372,7 +423,20 @@ export function RecommendFlow() {
 
   function handleSkipCandidate(skipped: RankedFragrance) {
     if (!rankerRef.current || choosing) return;
-    rankerRef.current.recordFeedback(skipped, profileRef.current, -1);
+    rankerRef.current.recordFeedback(
+      skipped,
+      profileRef.current,
+      -1,
+      currentRankingContext(),
+    );
+    void syncAffinityTasteProfile(profileRef.current, skipped, 0).then(
+      (saved) => {
+        if (saved) {
+          profileRef.current = saved;
+          void refresh({ silent: true });
+        }
+      },
+    );
     setOptions((prev) => prev.filter((item) => item.id !== skipped.id));
     haptic();
   }
@@ -488,6 +552,8 @@ export function RecommendFlow() {
         onClose={() => setOtherOpen(false)}
         onConfirm={handleConfirmOther}
       />
+
+      <RankerDebugPanel weights={rankerRef.current?.getWeights() ?? null} />
     </div>
   );
 }

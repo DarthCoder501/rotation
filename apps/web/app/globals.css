@@ -30,8 +30,8 @@
 
 html {
   background-color: var(--bg-deep);
-  /* Keep focused controls clear of the fixed bottom nav (WCAG 2.4.11) */
-  scroll-padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 16px);
+  /* Keep focused controls clear of the fixed top nav (WCAG 2.4.11) */
+  scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px) + 16px);
 }
 
 @media (prefers-reduced-motion: reduce) {

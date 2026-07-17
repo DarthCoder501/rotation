@@ -22,10 +22,12 @@ export function buildMCPContext(params: {
   weather: MCPRecommendContext["weather"];
   profile: UserProfile;
   shortlist: RankedFragrance[] | (FragranceRow & { score: number })[];
+  tempUnit?: MCPRecommendContext["tempUnit"];
 }): MCPRecommendContext {
   return {
     userActivity: params.userActivity,
     weather: params.weather,
+    tempUnit: params.tempUnit ?? "C",
     profile: params.profile,
     preferenceModel: DEFAULT_PREFERENCE_MODEL,
     shortlist: params.shortlist.map((fragrance, index) => ({

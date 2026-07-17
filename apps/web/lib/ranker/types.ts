@@ -25,6 +25,8 @@ export interface RankedFragrance extends FragranceRow {
 export interface MCPRecommendContext {
   userActivity: string;
   weather: { tempC: number; condition: string; humidity: number };
+  /** Display preference for narratives — ranker always uses tempC internally. */
+  tempUnit?: "C" | "F";
   profile: UserProfile;
   /** Continuous 0–100 affinity model used by the client ranker. */
   preferenceModel: {

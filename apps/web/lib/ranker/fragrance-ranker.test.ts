@@ -64,6 +64,39 @@ describe("extractFeatureVector", () => {
     expect(features[24]).toBe(1);
     expect(features.length).toBe(FEATURE_DIM);
   });
+
+  it("encodes weather and activity context hooks", () => {
+    const fresh = makeFragrance({
+      id: 1,
+      perfume: "Fresh",
+      brand: "A",
+      mainAccord1: "citrus",
+      mainAccord2: "aquatic",
+      ratingValue: 4.4,
+    });
+    const cozy = makeFragrance({
+      id: 2,
+      perfume: "Cozy",
+      brand: "B",
+      mainAccord1: "vanilla",
+      mainAccord2: "amber",
+      ratingValue: 4.4,
+    });
+
+    const hotGym = extractFeatureVector(fresh, EMPTY_PROFILE, {
+      activity: "Gym",
+      weather: { tempC: 30, humidity: 75 },
+    });
+    const coldRelax = extractFeatureVector(cozy, EMPTY_PROFILE, {
+      activity: "Relax",
+      weather: { tempC: 5, humidity: 40 },
+    });
+
+    expect(hotGym[25]).toBeGreaterThan(0);
+    expect(hotGym[30]).toBeGreaterThan(0);
+    expect(coldRelax[26]).toBeGreaterThan(0);
+    expect(coldRelax[31]).toBeGreaterThan(0);
+  });
 });
 
 describe("FragranceRanker", () => {
@@ -238,6 +271,58 @@ describe("FragranceRanker", () => {
     ).toBe(true);
   });
 
+  it("applies cold-start rating prior when weights are near zero", () => {
+    const ranker = new FragranceRanker(`${TEST_PROFILE_ID}-cold`);
+    const higher = makeFragrance({
+      id: 1,
+      perfume: "High",
+      brand: "A",
+      ratingValue: 4.8,
+      mainAccord1: "citrus",
+    });
+    const lower = makeFragrance({
+      id: 2,
+      perfume: "Lower",
+      brand: "B",
+      ratingValue: 3.9,
+      mainAccord1: "citrus",
+    });
+
+    expect(ranker.score(higher, EMPTY_PROFILE)).toBeGreaterThan(
+      ranker.score(lower, EMPTY_PROFILE),
+    );
+  });
+
+  it("boosts weather-fitting bottles when context is provided", () => {
+    const ranker = new FragranceRanker(`${TEST_PROFILE_ID}-wx`);
+    // Seed mild weight on warm×fresh so context can express preference
+    const seeded = ranker.getWeights();
+    seeded[25] = 0.8;
+    const warmRanker = new FragranceRanker(`${TEST_PROFILE_ID}-wx2`, seeded);
+
+    const fresh = makeFragrance({
+      id: 1,
+      perfume: "Fresh",
+      brand: "A",
+      mainAccord1: "citrus",
+      mainAccord2: "aquatic",
+      ratingValue: 4.3,
+    });
+    const cozy = makeFragrance({
+      id: 2,
+      perfume: "Cozy",
+      brand: "B",
+      mainAccord1: "vanilla",
+      mainAccord2: "amber",
+      ratingValue: 4.3,
+    });
+
+    const hot = { activity: "Gym", weather: { tempC: 31, humidity: 70 } };
+    expect(warmRanker.score(fresh, EMPTY_PROFILE, undefined, hot)).toBeGreaterThan(
+      warmRanker.score(cozy, EMPTY_PROFILE, undefined, hot),
+    );
+  });
+
   it("migrates legacy global storage key on profile-scoped load", () => {
     const legacy = new Float32Array(FEATURE_DIM);
     legacy[0] = 0.5;
@@ -247,16 +332,18 @@ describe("FragranceRanker", () => {
     );
 
     const ranker = new FragranceRanker(TEST_PROFILE_ID);
-    expect(ranker.score(
-      makeFragrance({
-        id: 1,
-        perfume: "Test",
-        brand: "B",
-        mainAccord1: "vanilla",
-        ratingValue: 4.5,
-      }),
-      vanillaProfile,
-    )).not.toBe(0);
+    expect(
+      ranker.score(
+        makeFragrance({
+          id: 1,
+          perfume: "Test",
+          brand: "B",
+          mainAccord1: "vanilla",
+          ratingValue: 4.5,
+        }),
+        vanillaProfile,
+      ),
+    ).not.toBe(0);
   });
 });
 

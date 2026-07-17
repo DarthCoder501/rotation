@@ -17,13 +17,14 @@ import { addToCollection, fetchCollection } from "@/lib/api/collection-client";
 import { cacheCollection } from "@/lib/collection-cache";
 import { saveAffinity } from "@/lib/ranker/affinity-store";
 import { FragranceRanker } from "@/lib/ranker/fragrance-ranker";
+import { syncAffinityTasteProfile } from "@/lib/ranker/sync-affinity-taste";
 import type { Fragrance } from "@/lib/types/fragrance";
 
 const DEBOUNCE_MS = 300;
 const MIN_QUERY = 2;
 
 export function CatalogSearchPageClient() {
-  const { profileId, profile } = useAuth();
+  const { profileId, profile, refresh } = useAuth();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [results, setResults] = useState<Fragrance[]>([]);
@@ -95,6 +96,12 @@ export function CatalogSearchPageClient() {
         saveAffinity(profileId, pendingFragrance.id, affinity);
         const ranker = new FragranceRanker(profileId);
         ranker.recordPreference(pendingFragrance, profile, affinity);
+        const saved = await syncAffinityTasteProfile(
+          profile,
+          pendingFragrance,
+          affinity,
+        );
+        if (saved) await refresh({ silent: true });
       }
       setOwnedIds((prev) => new Set(prev).add(pendingFragrance.id));
       const { items } = await fetchCollection();

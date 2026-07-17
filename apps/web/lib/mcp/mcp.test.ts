@@ -45,6 +45,13 @@ describe("MCP prompt", () => {
     expect(prompt).toContain("Relax");
     expect(prompt).toContain("vanilla");
     expect(prompt).toContain("0–100");
+    expect(prompt).toContain("22°C");
+  });
+
+  it("mentions Fahrenheit when tempUnit is F", () => {
+    const prompt = buildRecommendPrompt({ ...sampleContext, tempUnit: "F" });
+    expect(prompt).toContain("72°F");
+    expect(prompt).toContain("Fahrenheit");
   });
 });
 

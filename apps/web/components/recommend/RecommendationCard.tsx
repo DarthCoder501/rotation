@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import type { RecommendationResult, WeatherResult } from "@/lib/mcp/types";
 import { getAccords } from "@/lib/types/fragrance";
 import type { RankedFragrance } from "@/lib/ranker/types";
+import { useTempUnit } from "@/lib/temperature";
 
 interface RecommendationCardProps {
   recommendation: RecommendationResult;
@@ -32,6 +33,7 @@ export function RecommendationCard({
   onLove,
   onSkip,
 }: RecommendationCardProps) {
+  const { formatTemp } = useTempUnit();
   const accords = fragrance
     ? getAccords(fragrance)
     : [recommendation.accentAccord].filter(Boolean);
@@ -49,7 +51,7 @@ export function RecommendationCard({
           className="text-xs text-(--text-secondary) tabular-nums"
           aria-live="polite"
         >
-          {weather.tempC}°C · {weather.condition} · {weather.humidity}%
+          {formatTemp(weather.tempC)} · {weather.condition} · {weather.humidity}%
         </p>
       )}
 

@@ -1,5 +1,5 @@
 "use client";
-import { BottomNav } from "./BottomNav";
+import { AppNav } from "./AppNav";
 import { LiquidCanvas } from "../LiquidCanvas";
 
 export function AppShell({
@@ -12,10 +12,16 @@ export function AppShell({
   return (
     <>
       <LiquidCanvas />
-      <div className="relative z-10 min-h-dvh pb-[calc(64px+env(safe-area-inset-bottom))]">
+      {showNav && <AppNav />}
+      <div
+        className={`relative z-10 min-h-dvh ${
+          showNav
+            ? "pt-[calc(56px+env(safe-area-inset-top))] sm:pt-[calc(64px+env(safe-area-inset-top))]"
+            : ""
+        }`}
+      >
         {children}
       </div>
-      {showNav && <BottomNav />}
     </>
   );
 }

@@ -25,6 +25,7 @@ export const SAMPLE_FRAGRANCES: Fragrance[] = [
     mainAccord3: "amber",
     mainAccord4: "vanilla",
     mainAccord5: null,
+    visibility: "published",
   },
   {
     id: 2,
@@ -46,5 +47,6 @@ export const SAMPLE_FRAGRANCES: Fragrance[] = [
     mainAccord3: "warm spicy",
     mainAccord4: "fruity",
     mainAccord5: null,
+    visibility: "published",
   },
 ];

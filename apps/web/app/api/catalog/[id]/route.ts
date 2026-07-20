@@ -1,14 +1,18 @@
 import { NextResponse } from "next/server";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
+import { getOrCreateDeviceProfile } from "@/lib/server/device-profile";
 import {
   fragranceSelect,
   mapFragrance,
   type FragranceRow,
 } from "@/lib/server/fragrance-mapper";
+import { emailIsAdmin } from "@/lib/server/require-admin";
+import { resolveAppProfile } from "@/lib/server/app-profile";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
-import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 
 /**
- * GET /api/catalog/[id] — single fragrance from the source catalog.
+ * GET /api/catalog/[id] — published catalog rows are public;
+ * provisional (Custom) rows only for owner or admin.
  */
 export async function GET(
   _req: Request,
@@ -50,8 +54,33 @@ export async function GET(
       );
     }
 
+    const row = data as FragranceRow;
+    const visibility = row.visibility ?? "published";
+
+    if (visibility === "provisional") {
+      const appProfile = await resolveAppProfile();
+      const isAdmin = emailIsAdmin(appProfile.email);
+
+      if (!isAdmin) {
+        const profile = await getOrCreateDeviceProfile();
+        const { data: owned } = await supabaseAdmin
+          .from("collection_items")
+          .select("id")
+          .eq("user_id", profile.id)
+          .eq("fragrance_id", id)
+          .maybeSingle();
+
+        if (!owned) {
+          return NextResponse.json(
+            { message: "Fragrance not found." },
+            { status: 404 },
+          );
+        }
+      }
+    }
+
     return NextResponse.json({
-      fragrance: mapFragrance(data as FragranceRow),
+      fragrance: mapFragrance(row),
     });
   } catch (error) {
     return NextResponse.json(

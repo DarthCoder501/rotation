@@ -1,4 +1,7 @@
-import type { Fragrance } from "@/lib/types/fragrance";
+import type {
+  Fragrance,
+  FragranceVisibility,
+} from "@/lib/types/fragrance";
 
 export type FragranceRow = {
   id: number;
@@ -20,6 +23,7 @@ export type FragranceRow = {
   main_accord_3: string | null;
   main_accord_4: string | null;
   main_accord_5: string | null;
+  visibility?: FragranceVisibility | null;
 };
 
 export const fragranceSelect = `
@@ -41,10 +45,14 @@ export const fragranceSelect = `
   main_accord_2,
   main_accord_3,
   main_accord_4,
-  main_accord_5
+  main_accord_5,
+  visibility
 `;
 
 export function mapFragrance(row: FragranceRow): Fragrance {
+  const visibility: FragranceVisibility =
+    row.visibility === "provisional" ? "provisional" : "published";
+
   return {
     id: Number(row.id),
     url: row.url,
@@ -65,5 +73,6 @@ export function mapFragrance(row: FragranceRow): Fragrance {
     mainAccord3: row.main_accord_3,
     mainAccord4: row.main_accord_4,
     mainAccord5: row.main_accord_5,
+    visibility,
   };
 }

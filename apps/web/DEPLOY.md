@@ -14,6 +14,7 @@ In the Vercel project → **Settings → Environment Variables** (Production + P
 | `GEMINI_API_KEY`                | Strongly recommended | Without it, home still ranks but narratives use fallback |
 | `GEMINI_MODEL`                  | Optional             | Default `gemini-2.0-flash`                               |
 | `HF_TOKEN`                      | Recommended          | Semantic catalog search (MiniLM via Hugging Face). Alias: `HUGGINGFACE_API_KEY` |
+| `ADMIN_EMAILS`                  | For admin UI         | Comma-separated Google emails allowed at `/admin/submissions` |
 | `MCP_GATEWAY_URL`               | Optional             | Only if proxying to a remote Python MCP gateway          |
 
 Redeploy after changing env vars.
@@ -26,9 +27,11 @@ In **Supabase → SQL → New query**, run in order if not already applied:
 2. `supabase/migrations/002_auth_and_ranker_weights.sql` (Google auth link + ranker sync)
 3. `supabase/migrations/003_collection_affinity.sql` (collection liking 0–100)
 4. `supabase/migrations/004_match_fragrances.sql` (pgvector `match_fragrances` RPC for vibe search)
+5. `supabase/migrations/005_provisional_catalog.sql` (Custom provisional rows + publish-in-place)
 
 Affinity still works locally without `003`; server persistence needs the column.  
-Semantic catalog search needs `004` **and** rows with `embedding` (from `scripts/seed.py`).
+Semantic catalog search needs `004` **and** rows with `embedding` (from `scripts/seed.py`).  
+Custom-until-published submissions need `005`.
 
 ## 3. Auth redirect URLs
 
@@ -48,11 +51,13 @@ Enable **Google** under Authentication → Providers.
 3. Search catalog → try a vibe query like `vanilla gourmand` (needs `HF_TOKEN` + migration `004`) → add fragrance → affinity modal → collection
 4. `/profile` → Continue with Google (optional)
 5. Change activity on home → options refresh without a full black screen
+6. (Admins) `/admin/submissions` → approve publishes Custom scent in place
 
 ## 5. Ops notes
 
 - `/api/mcp` is rate-limited to **10 requests / minute / IP**
 - Catalog search is **hybrid**: keyword ILIKE + MiniLM/pgvector when `HF_TOKEN` is set
+- User submissions create **Custom** provisional catalog rows in their collection; approve publishes the same id
 - Ranker weights sync in the background after login (hybrid local + Supabase)
 - Ranker uses weather + activity features; strong likes also seed taste profile chips
 - Dev telemetry: open `/?debug=ranker` (or set `localStorage.scent_ranker_debug=1`)

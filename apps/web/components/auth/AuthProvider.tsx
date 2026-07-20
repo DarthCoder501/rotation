@@ -17,6 +17,7 @@ import { EMPTY_PROFILE } from "@/lib/ranker/types";
 
 type SessionState = {
   isAuthenticated: boolean;
+  isAdmin: boolean;
   email: string | null;
   profileId: string | null;
   profile: UserProfile;
@@ -30,6 +31,7 @@ const AuthContext = createContext<SessionState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [profile, setProfile] = useState<UserProfile>(EMPTY_PROFILE);
@@ -56,12 +58,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const data = (await response.json()) as {
           isAuthenticated: boolean;
+          isAdmin?: boolean;
           email: string | null;
           profileId: string;
           profile: UserProfile;
         };
 
         setIsAuthenticated(data.isAuthenticated);
+        setIsAdmin(Boolean(data.isAdmin));
         setEmail(data.email);
         setProfileId(data.profileId);
         setProfile(data.profile ?? EMPTY_PROFILE);
@@ -70,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         void hydrateRankerWeights(data.profileId);
       } catch {
         setIsAuthenticated(false);
+        setIsAdmin(false);
         setEmail(null);
         setProfileId(null);
         setProfile(EMPTY_PROFILE);
@@ -121,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await fetch("/api/auth/session", { method: "DELETE" });
     setIsAuthenticated(false);
+    setIsAdmin(false);
     setEmail(null);
     await refresh();
   }, [refresh]);
@@ -128,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       isAuthenticated,
+      isAdmin,
       email,
       profileId,
       profile,
@@ -138,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }),
     [
       isAuthenticated,
+      isAdmin,
       email,
       profileId,
       profile,

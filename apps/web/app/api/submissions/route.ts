@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { getOrCreateDeviceProfile } from "@/lib/server/device-profile";
 import {
+  fragranceSelect,
+  mapFragrance,
+  type FragranceRow,
+} from "@/lib/server/fragrance-mapper";
+import {
   mapSubmission,
   submissionSelect,
   type SubmissionRow,
@@ -68,8 +73,116 @@ export async function POST(req: NextRequest) {
   try {
     const profile = await getOrCreateDeviceProfile();
     const { mainAccords, ...fields } = parsed.data;
+    const perfumeKey = fields.perfume;
+    const brandKey = fields.brand;
 
-    const { data, error } = await supabaseAdmin
+    const { data: existingRows, error: existingError } = await supabaseAdmin
+      .from("fragrances")
+      .select(fragranceSelect)
+      .ilike("perfume", perfumeKey)
+      .ilike("brand", brandKey)
+      .limit(10);
+
+    if (existingError) {
+      return NextResponse.json(
+        {
+          message: toUserFacingMessage(
+            existingError.message,
+            "Couldn't check the catalog for that fragrance.",
+          ),
+        },
+        { status: 500 },
+      );
+    }
+
+    const exact = ((existingRows ?? []) as FragranceRow[]).find(
+      (row) =>
+        row.perfume.trim().toLowerCase() === perfumeKey.toLowerCase() &&
+        row.brand.trim().toLowerCase() === brandKey.toLowerCase(),
+    );
+
+    if (exact && (exact.visibility ?? "published") === "published") {
+      return NextResponse.json(
+        {
+          message:
+            "That fragrance is already in the catalog. Search for it instead.",
+          fragranceId: Number(exact.id),
+        },
+        { status: 409 },
+      );
+    }
+
+    let fragranceRow: FragranceRow;
+
+    if (exact && exact.visibility === "provisional") {
+      const { data: owned } = await supabaseAdmin
+        .from("collection_items")
+        .select("id")
+        .eq("user_id", profile.id)
+        .eq("fragrance_id", exact.id)
+        .maybeSingle();
+
+      if (owned) {
+        return NextResponse.json(
+          {
+            message:
+              "You already have this Custom fragrance in your collection.",
+            fragranceId: Number(exact.id),
+          },
+          { status: 409 },
+        );
+      }
+      fragranceRow = exact;
+    } else {
+      const { data: inserted, error: insertError } = await supabaseAdmin
+        .from("fragrances")
+        .insert({
+          perfume: fields.perfume,
+          brand: fields.brand,
+          country: fields.country ?? null,
+          gender: fields.gender ?? null,
+          rating_value: 4.0,
+          rating_count: 0,
+          top_notes: fields.topNotes ?? null,
+          middle_notes: fields.middleNotes ?? null,
+          base_notes: fields.baseNotes ?? null,
+          main_accord_1: mainAccords[0] ?? null,
+          main_accord_2: mainAccords[1] ?? null,
+          main_accord_3: mainAccords[2] ?? null,
+          main_accord_4: mainAccords[3] ?? null,
+          main_accord_5: mainAccords[4] ?? null,
+          visibility: "provisional",
+        })
+        .select(fragranceSelect)
+        .single();
+
+      if (insertError || !inserted) {
+        // Unique constraint race — surface as conflict when possible.
+        if (/duplicate|unique/i.test(insertError?.message ?? "")) {
+          return NextResponse.json(
+            {
+              message:
+                "That fragrance already exists. Search the catalog or try again.",
+            },
+            { status: 409 },
+          );
+        }
+        return NextResponse.json(
+          {
+            message: toUserFacingMessage(
+              insertError?.message,
+              "Couldn't create that Custom fragrance.",
+            ),
+          },
+          { status: 500 },
+        );
+      }
+      fragranceRow = inserted as FragranceRow;
+    }
+
+    const fragranceId = Number(fragranceRow.id);
+
+    const { data: submissionData, error: submissionError } = await supabaseAdmin
       .from("fragrance_submissions")
       .insert({
         user_id: profile.id,
@@ -86,15 +199,16 @@ export async function POST(req: NextRequest) {
         main_accord_4: mainAccords[3] ?? null,
         main_accord_5: mainAccords[4] ?? null,
         user_notes: fields.userNotes ?? null,
+        promoted_fragrance_id: fragranceId,
       })
       .select(submissionSelect)
       .single();
 
-    if (error) {
+    if (submissionError || !submissionData) {
       return NextResponse.json(
         {
           message: toUserFacingMessage(
-            error.message,
+            submissionError?.message,
             "Couldn't create that submission.",
           ),
         },
@@ -102,8 +216,34 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const { error: collectionError } = await supabaseAdmin
+      .from("collection_items")
+      .upsert(
+        {
+          user_id: profile.id,
+          fragrance_id: fragranceId,
+        },
+        { onConflict: "user_id,fragrance_id" },
+      );
+
+    if (collectionError) {
+      return NextResponse.json(
+        {
+          message: toUserFacingMessage(
+            collectionError.message,
+            "Submission saved, but couldn't add it to your collection.",
+          ),
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json(
-      { ok: true, submission: mapSubmission(data as SubmissionRow) },
+      {
+        ok: true,
+        submission: mapSubmission(submissionData as SubmissionRow),
+        fragrance: mapFragrance(fragranceRow),
+      },
       { status: 201 },
     );
   } catch (error) {

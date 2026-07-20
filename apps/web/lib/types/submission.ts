@@ -18,6 +18,8 @@ export interface FragranceSubmission {
   status: SubmissionStatus;
   createdAt: string;
   reviewedAt: string | null;
+  /** Linked provisional/published catalog row (same id kept across approve). */
+  promotedFragranceId: number | null;
 }
 
 export interface CreateSubmissionBody {

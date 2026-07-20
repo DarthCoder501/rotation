@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useTempUnit } from "@/lib/temperature";
 
 const TABS = [
@@ -18,6 +19,7 @@ const TABS = [
 export function AppNav() {
   const path = usePathname();
   const { unit, setUnit } = useTempUnit();
+  const { isAdmin } = useAuth();
 
   return (
     <header
@@ -33,7 +35,7 @@ export function AppNav() {
                   href={tab.href}
                   aria-label={tab.ariaLabel}
                   aria-current={path === tab.href ? "page" : undefined}
-                  className={`flex h-full min-h-(--space-touch) items-center justify-center rounded-sm px-1 text-xs focus-visible:outline focus-visible:outline-offset-[-2px] focus-visible:outline-(--focus-ring) sm:text-sm ${
+                  className={`flex h-full min-h-(--space-touch) items-center justify-center rounded-sm px-1 text-xs focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring) sm:text-sm ${
                     path === tab.href
                       ? "text-(--accent-gold)"
                       : "text-(--text-secondary) hover:text-(--text-primary)"
@@ -43,6 +45,22 @@ export function AppNav() {
                 </Link>
               </li>
             ))}
+            {isAdmin && (
+              <li className="flex-1">
+                <Link
+                  href="/admin/submissions"
+                  aria-label="Review fragrance submissions"
+                  aria-current={path.startsWith("/admin") ? "page" : undefined}
+                  className={`flex h-full min-h-(--space-touch) items-center justify-center rounded-sm px-1 text-xs focus-visible:outline focus-visible:-outline-offset-2 focus-visible:outline-(--focus-ring) sm:text-sm ${
+                    path.startsWith("/admin")
+                      ? "text-(--accent-gold)"
+                      : "text-(--text-secondary) hover:text-(--text-primary)"
+                  }`}
+                >
+                  Admin
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
 

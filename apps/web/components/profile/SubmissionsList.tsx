@@ -48,7 +48,8 @@ export function SubmissionsList() {
         Your submissions
       </h2>
       <p className="mt-1 text-sm text-(--text-secondary)">
-        Pending items are reviewed before they can appear in the catalog.
+        Pending items stay in your collection as Custom until approved for the
+        shared catalog.
       </p>
 
       {error && (

@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
 
     const { data: fragrance, error: fragranceError } = await supabaseAdmin
       .from("fragrances")
-      .select("id, rating_value")
+      .select("id, rating_value, visibility")
       .eq("id", fragranceId)
       .maybeSingle();
 
@@ -113,7 +113,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (!fragrance) {
-      return NextResponse.json({ status: 404 });
+      return NextResponse.json(
+        { message: "Fragrance not found." },
+        { status: 404 },
+      );
+    }
+
+    // Public add path is for published catalog only.
+    // Provisional (Custom) items are added via submit; allow affinity updates if already owned.
+    if (
+      (fragrance as { visibility?: string }).visibility === "provisional"
+    ) {
+      const { data: owned } = await supabaseAdmin
+        .from("collection_items")
+        .select("id")
+        .eq("user_id", profile.id)
+        .eq("fragrance_id", fragranceId)
+        .maybeSingle();
+
+      if (!owned) {
+        return NextResponse.json(
+          {
+            message:
+              "Custom fragrances are added when you submit them for review.",
+          },
+          { status: 400 },
+        );
+      }
     }
 
     const payload: Record<string, unknown> = {

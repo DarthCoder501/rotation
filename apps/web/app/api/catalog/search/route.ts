@@ -71,6 +71,7 @@ async function fetchTextMatches(q: string): Promise<FragranceRow[]> {
     supabaseAdmin
       .from("fragrances")
       .select(fragranceSelect)
+      .eq("visibility", "published")
       .order("rating_value", { ascending: false })
       .limit(TEXT_LIMIT);
 
@@ -135,6 +136,7 @@ async function fetchSemanticMatches(
       main_accord_3: row.main_accord_3,
       main_accord_4: row.main_accord_4,
       main_accord_5: row.main_accord_5,
+      visibility: "published",
     },
     similarity: Number(row.similarity),
   }));

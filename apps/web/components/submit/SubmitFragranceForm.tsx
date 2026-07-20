@@ -64,7 +64,7 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
     setSubmitting(true);
 
     try {
-      await createSubmission({
+      const created = await createSubmission({
         perfume: perfume.trim(),
         brand: brand.trim(),
         country: country.trim() || undefined,
@@ -76,8 +76,17 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
         userNotes: userNotes.trim() || undefined,
       });
 
-      setSuccess("Submitted for review — we'll add it if approved.");
-      window.setTimeout(() => router.push("/profile"), 1200);
+      setSuccess(
+        "Added to your collection as Custom — pending review.",
+      );
+      const fragranceId = created.fragrance?.id;
+      window.setTimeout(() => {
+        router.push(
+          fragranceId
+            ? `/collection?affinity=${fragranceId}`
+            : "/collection",
+        );
+      }, 900);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not submit fragrance");
     } finally {

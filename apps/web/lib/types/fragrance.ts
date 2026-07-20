@@ -1,4 +1,6 @@
 /** Matches Supabase `fragrances` row shape (camelCase for the app layer). */
+export type FragranceVisibility = "published" | "provisional";
+
 export interface Fragrance {
   id: number;
   url: string | null;
@@ -19,6 +21,13 @@ export interface Fragrance {
   mainAccord3: string | null;
   mainAccord4: string | null;
   mainAccord5: string | null;
+  /** provisional = Custom (pending review); published = shared catalog. */
+  visibility: FragranceVisibility;
+}
+
+/** True while the scent is user-submitted and not yet admin-published. */
+export function isCustomFragrance(fragrance: Fragrance): boolean {
+  return fragrance.visibility === "provisional";
 }
 
 export function getAccords(fragrance: Fragrance): string[] {

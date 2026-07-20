@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { resolveAppProfile } from "@/lib/server/app-profile";
+import { emailIsAdmin } from "@/lib/server/require-admin";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET() {
@@ -9,6 +10,7 @@ export async function GET() {
 
     return NextResponse.json({
       isAuthenticated: appProfile.isAuthenticated,
+      isAdmin: emailIsAdmin(appProfile.email),
       email: appProfile.email,
       profileId: appProfile.id,
       profile: appProfile.profile,

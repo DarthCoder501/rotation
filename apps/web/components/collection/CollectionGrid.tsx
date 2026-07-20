@@ -3,7 +3,11 @@
 import Link from "next/link";
 import { AccordBubbles } from "@/components/collection/AccordBubbles";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { getAccords, type Fragrance } from "@/lib/types/fragrance";
+import {
+  getAccords,
+  isCustomFragrance,
+  type Fragrance,
+} from "@/lib/types/fragrance";
 
 interface CollectionGridProps {
   items: Fragrance[];
@@ -61,6 +65,11 @@ function CollectionGridItem({
           <p className="mt-0.5 text-xs text-(--text-secondary) truncate">
             {fragrance.brand}
           </p>
+          {isCustomFragrance(fragrance) && (
+            <span className="mt-1 inline-flex w-fit rounded-sm border border-(--accent-gold)/35 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-(--accent-gold)">
+              Custom
+            </span>
+          )}
           <div className="mt-2 flex-1">
             <AccordBubbles accords={accords} size="sm" maxVisible={3} />
           </div>

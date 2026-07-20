@@ -1,14 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/shell/AppShell";
+import { AffinityCaptureModal } from "@/components/collection/AffinityCaptureModal";
 import {
   CollectionEmptyState,
   CollectionGrid,
   CollectionLoadingState,
 } from "@/components/collection/CollectionGrid";
 import { CollectionSearchBar } from "@/components/collection/CollectionSearchBar";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
+  addToCollection,
   fetchCollection,
   removeFromCollection,
 } from "@/lib/api/collection-client";
@@ -17,13 +21,20 @@ import {
   toUserFacingMessage,
 } from "@/lib/api/user-facing-error";
 import { cacheCollection } from "@/lib/collection-cache";
+import { FragranceRanker } from "@/lib/ranker/fragrance-ranker";
+import { saveAffinity } from "@/lib/ranker/affinity-store";
+import { syncAffinityTasteProfile } from "@/lib/ranker/sync-affinity-taste";
 import type { Fragrance } from "@/lib/types/fragrance";
 
 export function CollectionPageClient() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { profileId, profile, refresh } = useAuth();
   const [items, setItems] = useState<Fragrance[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<number | null>(null);
+  const [affinityTarget, setAffinityTarget] = useState<Fragrance | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,6 +43,7 @@ export function CollectionPageClient() {
       const { items: fetched } = await fetchCollection();
       setItems(fetched);
       await cacheCollection(fetched);
+      return fetched;
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Failed to load collection";
@@ -40,6 +52,7 @@ export function CollectionPageClient() {
         setError(toUserFacingMessage(e, "Couldn't load your collection."));
       }
       setItems([]);
+      return [] as Fragrance[];
     } finally {
       setLoading(false);
     }
@@ -47,11 +60,19 @@ export function CollectionPageClient() {
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      void load();
+      void (async () => {
+        const fetched = await load();
+        const raw = searchParams.get("affinity");
+        const affinityId = raw ? Number(raw) : NaN;
+        if (Number.isInteger(affinityId) && affinityId > 0) {
+          const target = fetched.find((f) => f.id === affinityId) ?? null;
+          if (target) setAffinityTarget(target);
+        }
+      })();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [load]);
+  }, [load, searchParams]);
 
   async function handleRemove(fragranceId: number) {
     setRemovingId(fragranceId);
@@ -68,6 +89,32 @@ export function CollectionPageClient() {
       }
     } finally {
       setRemovingId(null);
+    }
+  }
+
+  async function handleAffinityConfirm(affinity: number) {
+    if (!affinityTarget || !profileId) return;
+    try {
+      await addToCollection(affinityTarget.id, affinity);
+      saveAffinity(profileId, affinityTarget.id, affinity);
+      new FragranceRanker(profileId).recordPreference(
+        affinityTarget,
+        profile,
+        affinity,
+      );
+      const saved = await syncAffinityTasteProfile(
+        profile,
+        affinityTarget,
+        affinity,
+      );
+      if (saved) await refresh({ silent: true });
+    } catch (e) {
+      setError(
+        toUserFacingMessage(e, "Couldn't save how much you like this scent."),
+      );
+    } finally {
+      setAffinityTarget(null);
+      router.replace("/collection");
     }
   }
 
@@ -95,7 +142,7 @@ export function CollectionPageClient() {
             {error}{" "}
             <button
               type="button"
-              onClick={load}
+              onClick={() => void load()}
               className="text-(--accent-gold) underline-offset-2 hover:underline"
             >
               Retry
@@ -117,6 +164,18 @@ export function CollectionPageClient() {
           )}
         </div>
       </div>
+
+      {affinityTarget && (
+        <AffinityCaptureModal
+          open
+          fragrance={affinityTarget}
+          onConfirm={(affinity) => void handleAffinityConfirm(affinity)}
+          onClose={() => {
+            setAffinityTarget(null);
+            router.replace("/collection");
+          }}
+        />
+      )}
     </AppShell>
   );
 }

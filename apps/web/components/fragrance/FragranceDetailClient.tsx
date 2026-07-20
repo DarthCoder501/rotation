@@ -24,6 +24,7 @@ import { syncAffinityTasteProfile } from "@/lib/ranker/sync-affinity-taste";
 import {
   formatGender,
   getAccords,
+  isCustomFragrance,
   type Fragrance,
 } from "@/lib/types/fragrance";
 
@@ -197,6 +198,11 @@ export function FragranceDetailClient({
         </h1>
         {meta && (
           <p className="mt-1 text-sm text-(--text-secondary)">{meta}</p>
+        )}
+        {isCustomFragrance(fragrance) && (
+          <p className="mt-2 text-xs uppercase tracking-wide text-(--accent-gold)">
+            Custom — pending catalog review
+          </p>
         )}
         <p className="mt-2 text-sm tabular-nums text-(--accent-gold)">
           ★ {fragrance.ratingValue.toFixed(2)}

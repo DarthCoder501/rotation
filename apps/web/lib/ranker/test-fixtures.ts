@@ -20,6 +20,7 @@ export function makeFragrance(
     mainAccord3: null,
     mainAccord4: null,
     mainAccord5: null,
+    visibility: "published",
     ...overrides,
   };
 }

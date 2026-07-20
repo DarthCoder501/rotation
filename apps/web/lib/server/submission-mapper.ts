@@ -21,6 +21,7 @@ export type SubmissionRow = {
   status: SubmissionStatus;
   created_at: string;
   reviewed_at: string | null;
+  promoted_fragrance_id?: number | null;
 };
 
 export const submissionSelect = `
@@ -40,7 +41,8 @@ export const submissionSelect = `
   user_notes,
   status,
   created_at,
-  reviewed_at
+  reviewed_at,
+  promoted_fragrance_id
 `;
 
 export function mapSubmission(row: SubmissionRow): FragranceSubmission {
@@ -62,5 +64,9 @@ export function mapSubmission(row: SubmissionRow): FragranceSubmission {
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,
+    promotedFragranceId:
+      row.promoted_fragrance_id != null
+        ? Number(row.promoted_fragrance_id)
+        : null,
   };
 }

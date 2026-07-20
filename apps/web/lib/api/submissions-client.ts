@@ -2,6 +2,7 @@ import type {
   CreateSubmissionBody,
   FragranceSubmission,
 } from "@/lib/types/submission";
+import type { Fragrance } from "@/lib/types/fragrance";
 
 export interface SubmissionsResponse {
   submissions: FragranceSubmission[];
@@ -12,6 +13,7 @@ export type { CreateSubmissionBody };
 export interface CreateSubmissionResponse {
   ok: true;
   submission: FragranceSubmission;
+  fragrance?: Fragrance;
 }
 
 export async function fetchSubmissions(): Promise<SubmissionsResponse> {

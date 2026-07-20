@@ -25,6 +25,10 @@ Also run `supabase/migrations/003_collection_affinity.sql` so "how much do you l
 
 Run `supabase/migrations/004_match_fragrances.sql` and set `HF_TOKEN` on the web app (same MiniLM model as `scripts/seed.py`). Without both, catalog search stays keyword-only and `/api/health` warns about missing `HF_TOKEN`.
 
+## 1d. Custom submissions + admin approve (Phase E)
+
+Run `supabase/migrations/005_provisional_catalog.sql` and set `ADMIN_EMAILS` (comma-separated Google emails). Submissions create provisional catalog rows in the user's collection; `/admin/submissions` publishes them in place.
+
 ## 2. Enable Google OAuth
 
 1. **Authentication → Providers → Google** → Enable

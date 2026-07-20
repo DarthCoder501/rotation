@@ -21,6 +21,10 @@ Migration `002` adds:
 
 Also run `supabase/migrations/003_collection_affinity.sql` so "how much do you like it?" on add is stored server-side. The app keeps a local affinity cache either way.
 
+## 1c. Catalog semantic search (Phase C)
+
+Run `supabase/migrations/004_match_fragrances.sql` and set `HF_TOKEN` on the web app (same MiniLM model as `scripts/seed.py`). Without both, catalog search stays keyword-only and `/api/health` warns about missing `HF_TOKEN`.
+
 ## 2. Enable Google OAuth
 
 1. **Authentication → Providers → Google** → Enable

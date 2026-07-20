@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isQueryEmbeddingConfigured } from "@/lib/server/embed-query";
 
 /**
  * Lightweight readiness probe for Vercel / uptime checks.
@@ -12,6 +13,7 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
     ),
     geminiApiKey: Boolean(process.env.GEMINI_API_KEY?.trim()),
+    hfToken: isQueryEmbeddingConfigured(),
   };
 
   const requiredOk =
@@ -27,6 +29,11 @@ export async function GET() {
       warnings: [
         ...(!checks.geminiApiKey
           ? ["GEMINI_API_KEY missing — narratives fall back to ranker pick"]
+          : []),
+        ...(!checks.hfToken
+          ? [
+              "HF_TOKEN missing — catalog search is keyword-only (no semantic / vibe queries)",
+            ]
           : []),
       ],
     },

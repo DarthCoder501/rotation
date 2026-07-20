@@ -3,6 +3,8 @@ import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 
 export interface CatalogSearchResponse {
   results: Fragrance[];
+  /** "hybrid" when pgvector matches contributed; otherwise keyword-only. */
+  mode?: "hybrid" | "text";
 }
 
 export interface CatalogFragranceResponse {

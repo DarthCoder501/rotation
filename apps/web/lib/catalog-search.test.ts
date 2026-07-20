@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCatalogSearchPatterns,
   filterCatalogRows,
+  mergeHybridCatalogResults,
   rankCatalogRows,
   scoreCatalogMatch,
 } from "./catalog-search";
@@ -70,5 +71,69 @@ describe("filterCatalogRows / rankCatalogRows", () => {
     const spice = scoreCatalogMatch("spicebomb extreme", rows[0]);
     const diorExtreme = scoreCatalogMatch("spicebomb extreme", rows[3]);
     expect(spice).toBeGreaterThan(diorExtreme);
+  });
+});
+
+describe("mergeHybridCatalogResults", () => {
+  it("keeps strong text matches ahead of weak semantic hits", () => {
+    const textRows = [
+      { id: 1, perfume: "Spicebomb Extreme", brand: "Viktor&Rolf", rating_value: 4.2 },
+    ];
+    const semanticHits = [
+      {
+        row: {
+          id: 2,
+          perfume: "Random Gourmand",
+          brand: "House",
+          rating_value: 4.8,
+        },
+        similarity: 0.4,
+      },
+    ];
+
+    const merged = mergeHybridCatalogResults(
+      "spicebomb extreme",
+      textRows,
+      semanticHits,
+      5,
+    );
+    expect(merged[0]?.perfume).toBe("Spicebomb Extreme");
+  });
+
+  it("surfaces semantic-only vibe matches when text finds nothing", () => {
+    const merged = mergeHybridCatalogResults(
+      "vanilla gourmand",
+      [],
+      [
+        {
+          row: {
+            id: 9,
+            perfume: "Yara",
+            brand: "Lattafa",
+            rating_value: 4.5,
+          },
+          similarity: 0.78,
+        },
+      ],
+      5,
+    );
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.perfume).toBe("Yara");
+  });
+
+  it("boosts rows found by both text and semantic paths", () => {
+    const row = {
+      id: 3,
+      perfume: "Angel's Share",
+      brand: "Kilian",
+      rating_value: 4.4,
+    };
+    const merged = mergeHybridCatalogResults(
+      "cognac vanilla",
+      [row],
+      [{ row, similarity: 0.7 }],
+      5,
+    );
+    expect(merged[0]?.id).toBe(3);
   });
 });

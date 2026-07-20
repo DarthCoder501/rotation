@@ -56,11 +56,69 @@ function normalizeSearchText(value: string): string {
 }
 
 export type CatalogSearchable = {
+  id?: number;
   perfume: string;
   brand: string;
   rating_value?: number;
   ratingValue?: number;
 };
+
+export type SemanticCatalogHit<T extends CatalogSearchable> = {
+  row: T;
+  similarity: number;
+};
+
+function rowId(row: CatalogSearchable, fallback: number): number {
+  return typeof row.id === "number" ? row.id : fallback;
+}
+
+/**
+ * Merge keyword hits with pgvector semantic hits.
+ * Exact / phrase text matches stay on top; vibe queries surface via similarity.
+ */
+export function mergeHybridCatalogResults<T extends CatalogSearchable>(
+  rawQuery: string,
+  textRows: T[],
+  semanticHits: SemanticCatalogHit<T>[],
+  limit = 25,
+): T[] {
+  const scores = new Map<number, { row: T; score: number }>();
+  let syntheticId = -1;
+
+  for (const row of textRows) {
+    const id = rowId(row, syntheticId--);
+    const textScore = scoreCatalogMatch(rawQuery, row);
+    if (textScore <= 0) continue;
+    scores.set(id, { row, score: textScore });
+  }
+
+  for (const { row, similarity } of semanticHits) {
+    if (!Number.isFinite(similarity) || similarity <= 0) continue;
+    const id = rowId(row, syntheticId--);
+    const rating = row.rating_value ?? row.ratingValue ?? 0;
+    // ~0.75 similarity ≈ 337 pts — competitive with brand matches, below exact perfume
+    const semanticScore = similarity * 450 + Math.min(rating, 5) * 2;
+    const existing = scores.get(id);
+    if (!existing) {
+      scores.set(id, { row, score: semanticScore });
+    } else {
+      scores.set(id, {
+        row: existing.row,
+        score: Math.max(existing.score, semanticScore) + 80,
+      });
+    }
+  }
+
+  return [...scores.values()]
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const ratingA = a.row.rating_value ?? a.row.ratingValue ?? 0;
+      const ratingB = b.row.rating_value ?? b.row.ratingValue ?? 0;
+      return ratingB - ratingA;
+    })
+    .slice(0, limit)
+    .map(({ row }) => row);
+}
 
 /**
  * Higher is better. Phrase / all-token perfume matches outrank partial or brand-only hits.

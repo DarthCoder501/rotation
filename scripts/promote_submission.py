@@ -6,6 +6,8 @@ Usage:
   python scripts/promote_submission.py --id 123 --rating 4.0
 
 This script is the admin gate: user submissions never write directly to `fragrances`.
+Generates a MiniLM embedding (same model as seed.py) so the new row is
+findable via semantic catalog search.
 """
 from __future__ import annotations
 
@@ -14,9 +16,29 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from huggingface_hub import login
+from sentence_transformers import SentenceTransformer
 from supabase import create_client
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
+if token := os.environ.get("HF_TOKEN"):
+    login(token)
+
+MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+
+
+def build_embedding_text_from_submission(submission: dict) -> str:
+    parts = [
+        submission.get("main_accord_1"),
+        submission.get("main_accord_2"),
+        submission.get("main_accord_3"),
+        submission.get("main_accord_4"),
+        submission.get("main_accord_5"),
+        submission.get("top_notes"),
+        submission.get("middle_notes"),
+        submission.get("base_notes"),
+    ]
+    return " ".join(str(p).strip() for p in parts if p and str(p).strip())
 
 
 def main() -> None:
@@ -52,6 +74,13 @@ def main() -> None:
     if submission["status"] == "approved":
         raise SystemExit(f"Submission {args.id} is already approved")
 
+    embed_text = build_embedding_text_from_submission(submission)
+    if not embed_text.strip():
+        embed_text = f"{submission['perfume']} {submission['brand']}"
+
+    print(f"Embedding: {embed_text[:120]}…")
+    embedding = MODEL.encode([embed_text])[0].tolist()
+
     row = {
         "perfume": submission["perfume"],
         "brand": submission["brand"],
@@ -67,6 +96,7 @@ def main() -> None:
         "main_accord_3": submission.get("main_accord_3"),
         "main_accord_4": submission.get("main_accord_4"),
         "main_accord_5": submission.get("main_accord_5"),
+        "embedding": embedding,
     }
 
     inserted = sb.table("fragrances").insert(row).execute().data
@@ -74,10 +104,7 @@ def main() -> None:
         raise SystemExit("Failed to insert into fragrances")
 
     fragrance_id = inserted[0]["id"]
-    print(f"Inserted fragrance id={fragrance_id}")
-
-    # TODO: generate embedding with SentenceTransformer and update fragrances.embedding
-    # Reuse build_embedding_text logic from scripts/seed.py
+    print(f"Inserted fragrance id={fragrance_id} with embedding")
 
     sb.table("fragrance_submissions").update(
         {

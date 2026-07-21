@@ -7,6 +7,7 @@ import { AffinityCaptureModal } from "@/components/collection/AffinityCaptureMod
 import { AppShell } from "@/components/shell/AppShell";
 import { CollectionSearchBar } from "@/components/collection/CollectionSearchBar";
 import {
+  CreateCustomSearchOption,
   EmptySearchState,
   FragranceSearchResult,
   SearchErrorState,
@@ -166,23 +167,26 @@ export function CatalogSearchPageClient() {
               <EmptySearchState query={debouncedQuery} />
             )}
           {!loading && !error && results.length > 0 && (
-            <ul
-              id="catalog-search-results"
-              role="listbox"
-              aria-label={listLabel}
-              className="space-y-3"
-            >
-              {results.map((f) => (
-                <li key={f.id} role="option" aria-selected={false}>
-                  <FragranceSearchResult
-                    fragrance={f}
-                    isOwned={ownedIds.has(f.id)}
-                    isAdding={adding && pendingFragrance?.id === f.id}
-                    onAdd={() => setPendingFragrance(f)}
-                  />
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-3">
+              <ul
+                id="catalog-search-results"
+                role="listbox"
+                aria-label={listLabel}
+                className="space-y-3"
+              >
+                {results.map((f) => (
+                  <li key={f.id} role="option" aria-selected={false}>
+                    <FragranceSearchResult
+                      fragrance={f}
+                      isOwned={ownedIds.has(f.id)}
+                      isAdding={adding && pendingFragrance?.id === f.id}
+                      onAdd={() => setPendingFragrance(f)}
+                    />
+                  </li>
+                ))}
+              </ul>
+              <CreateCustomSearchOption query={debouncedQuery} />
+            </div>
           )}
         </div>
       </div>

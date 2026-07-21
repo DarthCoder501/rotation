@@ -108,7 +108,8 @@ describe("FragranceRanker", () => {
 
   it("scales recommendation option count with collection size", () => {
     expect(recommendationOptionCount(1)).toBe(1);
-    expect(recommendationOptionCount(3)).toBe(2);
+    expect(recommendationOptionCount(2)).toBe(2);
+    expect(recommendationOptionCount(3)).toBe(3);
     expect(recommendationOptionCount(8)).toBe(3);
     expect(recommendationOptionCount(25)).toBe(5);
   });

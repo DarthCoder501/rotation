@@ -169,8 +169,8 @@ function dot(a: Float32Array, b: Float32Array): number {
 
 /** How many daily options to present based on collection size. */
 export function recommendationOptionCount(collectionSize: number): number {
-  if (collectionSize <= 1) return collectionSize;
-  if (collectionSize <= 3) return Math.min(2, collectionSize);
+  // Small collections show every bottle — hiding one of three felt broken.
+  if (collectionSize <= 3) return collectionSize;
   if (collectionSize <= 8) return 3;
   if (collectionSize <= 20) return 4;
   return 5;

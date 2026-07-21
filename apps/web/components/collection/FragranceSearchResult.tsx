@@ -146,13 +146,30 @@ export function EmptySearchState({ query }: EmptySearchStateProps) {
         No matches for &ldquo;{query}&rdquo;
       </p>
       <p className="mt-2 text-sm text-(--text-secondary)">
-        Try a different spelling or brand name.
+        Try a different spelling or brand name, or create a custom bottle.
       </p>
       <Link
         href={`/submit?q=${encodeURIComponent(query)}`}
         className="mt-6 inline-flex min-h-(--space-touch) items-center text-(--accent-gold) underline-offset-4 hover:underline"
       >
-        Submit this fragrance for review →
+        Create a custom fragrance →
+      </Link>
+    </div>
+  );
+}
+
+/** Shown under search hits when none of the results are what the user wants. */
+export function CreateCustomSearchOption({ query }: { query: string }) {
+  return (
+    <div className="rounded-md border border-dashed border-(--glass-border) px-4 py-5 text-center">
+      <p className="text-sm text-(--text-secondary)">
+        Don&apos;t see what you&apos;re looking for?
+      </p>
+      <Link
+        href={`/submit?q=${encodeURIComponent(query)}`}
+        className="mt-2 inline-flex min-h-(--space-touch) items-center text-(--accent-gold) underline-offset-4 hover:underline"
+      >
+        Create a custom fragrance →
       </Link>
     </div>
   );

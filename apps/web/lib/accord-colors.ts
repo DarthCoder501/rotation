@@ -21,6 +21,20 @@ const ACCORD_COLORS: Record<string, string> = {
   "white floral": "#F5F0E8",
 };
 
+/** Canonical accord labels for autocomplete on submit / taste forms. */
+export const KNOWN_ACCORDS: readonly string[] = [
+  ...Object.keys(ACCORD_COLORS),
+  "aquatic",
+  "green",
+  "ozonic",
+  "oriental",
+  "gourmand",
+  "balsamic",
+  "tobacco",
+  "iris",
+  "musk",
+].filter((value, index, all) => all.indexOf(value) === index);
+
 const FALLBACK = "#8B7E74";
 
 /** Theme-aligned text candidates for accord pill labels. */

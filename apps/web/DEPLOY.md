@@ -53,7 +53,18 @@ Enable **Google** under Authentication → Providers.
 5. Change activity on home → options refresh without a full black screen
 6. (Admins) `/admin/submissions` → approve publishes Custom scent in place
 
-## 5. Ops notes
+## 5. PWA checks
+
+After deploy (HTTPS required for install):
+
+1. Chrome → DevTools → **Application** → Manifest shows Rotation + icons
+2. Application → Service Workers → `/serwist/sw.js` is activated
+3. Lighthouse → Progressive Web App checklist passes installability
+4. Optional: install from the in-app banner or browser install menu
+
+Offline: navigate while offline should show `/~offline`. Collection cache (IndexedDB) still feeds the ranker when online APIs fail.
+
+## 6. Ops notes
 
 - `/api/mcp` is rate-limited to **10 requests / minute / IP**
 - Catalog search is **hybrid**: keyword ILIKE + MiniLM/pgvector when `HF_TOKEN` is set
@@ -62,3 +73,4 @@ Enable **Google** under Authentication → Providers.
 - Ranker uses weather + activity features; strong likes also seed taste profile chips
 - Dev telemetry: open `/?debug=ranker` (or set `localStorage.scent_ranker_debug=1`)
 - Arc browser: if the window goes black on maximize, turn off hardware acceleration in `arc://settings/system` (known Arc GPU issue)
+- PWA uses `@serwist/turbopack` — SW URL is `/serwist/sw.js`

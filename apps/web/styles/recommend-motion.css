@@ -96,7 +96,11 @@
   height: 36px;
   border-radius: 50% 50% 48% 48% / 42% 42% 58% 58%;
   background:
-    radial-gradient(ellipse at 35% 25%, rgba(255, 235, 190, 0.75), transparent 45%),
+    radial-gradient(
+      ellipse at 35% 25%,
+      rgba(255, 235, 190, 0.75),
+      transparent 45%
+    ),
     linear-gradient(160deg, #e8c872 0%, #d4af58 42%, #8a6a2a 100%);
   box-shadow:
     0 0 24px rgba(212, 175, 88, 0.45),
@@ -131,8 +135,14 @@
       rgba(18, 17, 16, 0.92) 40%,
       rgba(10, 10, 10, 0.96)
     ),
-    radial-gradient(ellipse at 30% 0%, rgba(232, 200, 114, 0.18), transparent 55%);
-  background-size: 200% 200%, 100% 100%;
+    radial-gradient(
+      ellipse at 30% 0%,
+      rgba(232, 200, 114, 0.18),
+      transparent 55%
+    );
+  background-size:
+    200% 200%,
+    100% 100%;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(245, 237, 224, 0.08);
@@ -360,4 +370,3 @@
     display: none;
   }
 }
-

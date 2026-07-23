@@ -553,7 +553,7 @@ export function RecommendFlow() {
         onConfirm={handleConfirmOther}
       />
 
-      <RankerDebugPanel weights={rankerRef.current?.getWeights() ?? null} />
+      <RankerDebugPanel />
     </div>
   );
 }

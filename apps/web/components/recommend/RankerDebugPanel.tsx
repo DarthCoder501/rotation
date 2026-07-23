@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { loadWeights } from "@/lib/ranker/storage";
 import {
   getRankerTelemetry,
   topWeightEntries,
   weightL2Norm,
   type RankerTelemetryEvent,
 } from "@/lib/ranker/telemetry";
+import { getActiveProfileId } from "@/lib/ranker/weight-sync";
 
 function shouldShowDebug(): boolean {
   if (typeof window === "undefined") return false;
@@ -20,26 +22,34 @@ function shouldShowDebug(): boolean {
   return new URLSearchParams(window.location.search).get("debug") === "ranker";
 }
 
-interface RankerDebugPanelProps {
-  weights?: Float32Array | null;
-}
-
-export function RankerDebugPanel({ weights }: RankerDebugPanelProps) {
+export function RankerDebugPanel() {
   const [visible, setVisible] = useState(false);
   const [events, setEvents] = useState<RankerTelemetryEvent[]>([]);
+  const [weights, setWeights] = useState<Float32Array | null>(null);
 
   useEffect(() => {
-    setVisible(shouldShowDebug());
+    const timeoutId = window.setTimeout(() => {
+      setVisible(shouldShowDebug());
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
   }, []);
 
   useEffect(() => {
     if (!visible) return;
-    setEvents(getRankerTelemetry());
-    const id = window.setInterval(() => {
+
+    const refresh = () => {
       setEvents(getRankerTelemetry());
-    }, 1500);
-    return () => window.clearInterval(id);
-  }, [visible, weights]);
+      const profileId = getActiveProfileId();
+      setWeights(profileId ? loadWeights(profileId) : null);
+    };
+
+    const kickoff = window.setTimeout(refresh, 0);
+    const id = window.setInterval(refresh, 1500);
+    return () => {
+      window.clearTimeout(kickoff);
+      window.clearInterval(id);
+    };
+  }, [visible]);
 
   if (!visible) return null;
 

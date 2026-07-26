@@ -1,0 +1,52 @@
+# Keep the Supabase free-tier project from pausing after inactivity.
+# Free projects pause after ~7 days with no activity; this runs once a week.
+#
+# Required GitHub repo secrets:
+#   SUPABASE_URL       — e.g. https://YOUR_PROJECT_REF.supabase.co
+#   SUPABASE_ANON_KEY  — project anon/public key
+
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Sundays at 12:00 UTC
+    - cron: "0 12 * * 0"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping Supabase REST API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "Missing SUPABASE_URL or SUPABASE_ANON_KEY secrets."
+            exit 1
+          fi
+
+          # Trailing slash-safe base URL
+          BASE="${SUPABASE_URL%/}"
+          URL="${BASE}/rest/v1/fragrances?select=id&limit=1"
+
+          HTTP_CODE=$(curl -sS -o /tmp/supabase-keepalive.json -w "%{http_code}" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Accept: application/json" \
+            "$URL")
+
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/supabase-keepalive.json
+          echo
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Keepalive request failed."
+            exit 1
+          fi
+
+          echo "Supabase keepalive OK."

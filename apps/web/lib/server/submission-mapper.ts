@@ -18,6 +18,7 @@ export type SubmissionRow = {
   main_accord_4: string | null;
   main_accord_5: string | null;
   user_notes: string | null;
+  source_url?: string | null;
   status: SubmissionStatus;
   created_at: string;
   reviewed_at: string | null;
@@ -39,6 +40,7 @@ export const submissionSelect = `
   main_accord_4,
   main_accord_5,
   user_notes,
+  source_url,
   status,
   created_at,
   reviewed_at,
@@ -61,6 +63,7 @@ export function mapSubmission(row: SubmissionRow): FragranceSubmission {
     mainAccord4: row.main_accord_4,
     mainAccord5: row.main_accord_5,
     userNotes: row.user_notes,
+    sourceUrl: row.source_url ?? null,
     status: row.status,
     createdAt: row.created_at,
     reviewedAt: row.reviewed_at,

@@ -28,10 +28,14 @@ In **Supabase → SQL → New query**, run in order if not already applied:
 3. `supabase/migrations/003_collection_affinity.sql` (collection liking 0–100)
 4. `supabase/migrations/004_match_fragrances.sql` (pgvector `match_fragrances` RPC for vibe search)
 5. `supabase/migrations/005_provisional_catalog.sql` (Custom provisional rows + publish-in-place)
+6. `supabase/migrations/006_wear_events.sql` (daily wear log — multiple wears/day, history + insights)
+7. `supabase/migrations/007_submission_source_url.sql` (optional reference link on submissions)
 
 Affinity still works locally without `003`; server persistence needs the column.  
 Semantic catalog search needs `004` **and** rows with `embedding` (from `scripts/seed.py`).  
-Custom-until-published submissions need `005`.
+Custom-until-published submissions need `005`.  
+Wear history / today strip / insights need `006`.  
+Submission reference links need `007` (approve writes the link to `fragrances.url`).
 
 ## 3. Auth redirect URLs
 
@@ -51,7 +55,8 @@ Enable **Google** under Authentication → Providers.
 3. Search catalog → try a vibe query like `vanilla gourmand` (needs `HF_TOKEN` + migration `004`) → add fragrance → affinity modal → collection
 4. `/profile` → Continue with Google (optional)
 5. Change activity on home → options refresh without a full black screen
-6. (Admins) `/admin/submissions` → approve publishes Custom scent in place
+6. Wear this / pick from collection → today strip updates; `/profile?section=history` shows log
+7. (Admins) `/admin/submissions` → approve publishes Custom scent in place
 
 ## 5. PWA checks
 

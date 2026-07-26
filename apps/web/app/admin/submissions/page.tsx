@@ -12,7 +12,8 @@ export default function AdminSubmissionsPage() {
         <p className="mt-2 text-sm text-(--text-secondary)">
           Approve publishes the linked Custom scent into the shared catalog
           (same id — collections stay intact). Reject leaves it Custom for the
-          submitter only.
+          submitter only. Switch to Approved to edit published name, accords,
+          notes, or Fragrantica link.
         </p>
         <div className="mt-6">
           <Suspense

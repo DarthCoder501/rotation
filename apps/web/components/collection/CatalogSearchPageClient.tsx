@@ -152,6 +152,12 @@ export function CatalogSearchPageClient() {
             : "Search by fragrance name or brand — spaces and hyphens both work"}
         </p>
 
+        {debouncedQuery.length >= MIN_QUERY && (
+          <div className="mt-3">
+            <CreateCustomSearchOption query={debouncedQuery} />
+          </div>
+        )}
+
         <div className="mt-4">
           {loading && <SearchLoadingState />}
           {!loading && error && (
@@ -167,26 +173,23 @@ export function CatalogSearchPageClient() {
               <EmptySearchState query={debouncedQuery} />
             )}
           {!loading && !error && results.length > 0 && (
-            <div className="space-y-3">
-              <ul
-                id="catalog-search-results"
-                role="listbox"
-                aria-label={listLabel}
-                className="space-y-3"
-              >
-                {results.map((f) => (
-                  <li key={f.id} role="option" aria-selected={false}>
-                    <FragranceSearchResult
-                      fragrance={f}
-                      isOwned={ownedIds.has(f.id)}
-                      isAdding={adding && pendingFragrance?.id === f.id}
-                      onAdd={() => setPendingFragrance(f)}
-                    />
-                  </li>
-                ))}
-              </ul>
-              <CreateCustomSearchOption query={debouncedQuery} />
-            </div>
+            <ul
+              id="catalog-search-results"
+              role="listbox"
+              aria-label={listLabel}
+              className="space-y-3"
+            >
+              {results.map((f) => (
+                <li key={f.id} role="option" aria-selected={false}>
+                  <FragranceSearchResult
+                    fragrance={f}
+                    isOwned={ownedIds.has(f.id)}
+                    isAdding={adding && pendingFragrance?.id === f.id}
+                    onAdd={() => setPendingFragrance(f)}
+                  />
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </div>

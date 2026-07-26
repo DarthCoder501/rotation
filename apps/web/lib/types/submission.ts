@@ -15,6 +15,8 @@ export interface FragranceSubmission {
   mainAccord4: string | null;
   mainAccord5: string | null;
   userNotes: string | null;
+  /** Optional reference link supplied by the submitter (usually Fragrantica). */
+  sourceUrl: string | null;
   status: SubmissionStatus;
   createdAt: string;
   reviewedAt: string | null;
@@ -32,4 +34,18 @@ export interface CreateSubmissionBody {
   baseNotes?: string;
   mainAccords?: string[];
   userNotes?: string;
+  sourceUrl?: string;
+}
+
+/** Admin patch for an already-approved submission + its catalog fragrance. */
+export interface UpdateApprovedSubmissionBody {
+  perfume: string;
+  brand: string;
+  country?: string | null;
+  gender?: "men" | "women" | "unisex" | null;
+  topNotes?: string | null;
+  middleNotes?: string | null;
+  baseNotes?: string | null;
+  mainAccords?: string[];
+  sourceUrl?: string | null;
 }

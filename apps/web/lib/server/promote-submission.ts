@@ -120,6 +120,7 @@ async function resolveFragranceForSubmission(
 export async function approveSubmission(
   submissionId: number,
   reviewedBy: string,
+  options: { url?: string | null } = {},
 ): Promise<PromoteResult> {
   const submission = await loadSubmission(submissionId);
   if (!submission) {
@@ -161,11 +162,16 @@ export async function approveSubmission(
     };
   }
 
+  // Reviewer-supplied link wins; otherwise keep whatever the submitter gave.
+  const url =
+    options.url ?? fragrance.url ?? submission.source_url ?? null;
+
   const { data: published, error: publishError } = await supabaseAdmin
     .from("fragrances")
     .update({
       visibility: "published",
       embedding,
+      url,
       // Prefer submission metadata if fragrance was a thin provisional.
       country: fragrance.country ?? submission.country,
       gender: fragrance.gender ?? submission.gender,
@@ -295,4 +301,135 @@ export async function listSubmissionsForAdmin(
   const { data, error } = await query;
   if (error) throw new Error(error.message);
   return ((data ?? []) as SubmissionRow[]).map(mapSubmission);
+}
+
+export type UpdateApprovedFields = {
+  perfume: string;
+  brand: string;
+  country: string | null;
+  gender: string | null;
+  topNotes: string | null;
+  middleNotes: string | null;
+  baseNotes: string | null;
+  mainAccords: string[];
+  url: string | null;
+};
+
+/**
+ * Patch an approved submission and its linked catalog fragrance in place.
+ * Re-embeds when name / notes / accords change so vibe search stays fresh.
+ */
+export async function updateApprovedSubmission(
+  submissionId: number,
+  fields: UpdateApprovedFields,
+): Promise<PromoteResult> {
+  const submission = await loadSubmission(submissionId);
+  if (!submission) {
+    return { ok: false, status: 404, message: "Submission not found." };
+  }
+  if (submission.status !== "approved") {
+    return {
+      ok: false,
+      status: 409,
+      message: "Only approved submissions can be edited this way.",
+    };
+  }
+
+  const fragrance = await resolveFragranceForSubmission(submission);
+  if (!fragrance) {
+    return {
+      ok: false,
+      status: 500,
+      message: "Could not resolve linked fragrance.",
+    };
+  }
+
+  const accords = fields.mainAccords
+    .map((a) => a.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const perfume = fields.perfume.trim();
+  const brand = fields.brand.trim();
+  if (!perfume || !brand) {
+    return {
+      ok: false,
+      status: 400,
+      message: "Perfume name and brand are required.",
+    };
+  }
+
+  const nextMeta = {
+    perfume,
+    brand,
+    country: fields.country,
+    gender: fields.gender,
+    top_notes: fields.topNotes,
+    middle_notes: fields.middleNotes,
+    base_notes: fields.baseNotes,
+    main_accord_1: accords[0] ?? null,
+    main_accord_2: accords[1] ?? null,
+    main_accord_3: accords[2] ?? null,
+    main_accord_4: accords[3] ?? null,
+    main_accord_5: accords[4] ?? null,
+    url: fields.url,
+  };
+
+  const embedText = buildEmbeddingText(nextMeta);
+  const embedding = await embedSearchQuery(embedText);
+  // Soft-fail embedding: still save metadata if HF is down.
+  const fragrancePatch = embedding
+    ? { ...nextMeta, embedding, visibility: "published" as const }
+    : { ...nextMeta, visibility: "published" as const };
+
+  const { data: published, error: publishError } = await supabaseAdmin
+    .from("fragrances")
+    .update(fragrancePatch)
+    .eq("id", fragrance.id)
+    .select(fragranceSelect)
+    .single();
+
+  if (publishError || !published) {
+    return {
+      ok: false,
+      status: 500,
+      message: publishError?.message ?? "Failed to update fragrance.",
+    };
+  }
+
+  const { data: updatedSubmission, error: updateError } = await supabaseAdmin
+    .from("fragrance_submissions")
+    .update({
+      perfume: nextMeta.perfume,
+      brand: nextMeta.brand,
+      country: nextMeta.country,
+      gender: nextMeta.gender,
+      top_notes: nextMeta.top_notes,
+      middle_notes: nextMeta.middle_notes,
+      base_notes: nextMeta.base_notes,
+      main_accord_1: nextMeta.main_accord_1,
+      main_accord_2: nextMeta.main_accord_2,
+      main_accord_3: nextMeta.main_accord_3,
+      main_accord_4: nextMeta.main_accord_4,
+      main_accord_5: nextMeta.main_accord_5,
+      source_url: nextMeta.url,
+      promoted_fragrance_id: Number(fragrance.id),
+    })
+    .eq("id", submissionId)
+    .select(submissionSelect)
+    .single();
+
+  if (updateError || !updatedSubmission) {
+    return {
+      ok: false,
+      status: 500,
+      message: updateError?.message ?? "Failed to update submission.",
+    };
+  }
+
+  return {
+    ok: true,
+    submission: mapSubmission(updatedSubmission as SubmissionRow),
+    fragrance: mapFragrance(published as FragranceRow),
+  };
 }

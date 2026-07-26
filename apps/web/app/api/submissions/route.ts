@@ -13,6 +13,7 @@ import {
 } from "@/lib/server/submission-mapper";
 import { supabaseAdmin } from "@/lib/server/supabase-admin";
 import type { CreateSubmissionBody } from "@/lib/types/submission";
+import { normalizeExternalUrl } from "@/lib/url";
 
 export async function GET() {
   try {
@@ -139,6 +140,7 @@ export async function POST(req: NextRequest) {
         .insert({
           perfume: fields.perfume,
           brand: fields.brand,
+          url: fields.sourceUrl ?? null,
           country: fields.country ?? null,
           gender: fields.gender ?? null,
           rating_value: 4.0,
@@ -199,6 +201,7 @@ export async function POST(req: NextRequest) {
         main_accord_4: mainAccords[3] ?? null,
         main_accord_5: mainAccords[4] ?? null,
         user_notes: fields.userNotes ?? null,
+        source_url: fields.sourceUrl ?? null,
         promoted_fragrance_id: fragranceId,
       })
       .select(submissionSelect)
@@ -295,6 +298,15 @@ function parseCreateSubmissionBody(
         .slice(0, 5)
     : [];
 
+  const rawSourceUrl = optionalString(raw.sourceUrl);
+  const sourceUrl = rawSourceUrl ? normalizeExternalUrl(rawSourceUrl) : null;
+  if (rawSourceUrl && !sourceUrl) {
+    return {
+      error:
+        "Link must be a valid web address, e.g. https://www.fragrantica.com/perfume/…",
+    };
+  }
+
   return {
     data: {
       perfume,
@@ -305,6 +317,7 @@ function parseCreateSubmissionBody(
       middleNotes: optionalString(raw.middleNotes),
       baseNotes: optionalString(raw.baseNotes),
       userNotes: optionalString(raw.userNotes),
+      sourceUrl: sourceUrl ?? undefined,
       mainAccords,
     },
   };

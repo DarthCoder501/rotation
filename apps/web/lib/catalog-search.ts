@@ -1,10 +1,93 @@
 /**
- * Build catalog ILIKE patterns that tolerate space ↔ hyphen differences
- * (e.g. "ocean noir" ↔ "ocean-noir").
+ * Catalog text search helpers.
  *
- * For multi-word queries we intentionally do NOT emit lone common tokens like
- * "%extreme%" as primary DB patterns — those flood results with unrelated hits.
- * Token matching is handled in scoreCatalogMatch / filterCatalogRows.
+ * Retrieval (ILIKE patterns) casts a wide net; ranking + AND filtering
+ * (with light typo forgiveness) decide what the user actually sees.
+ */
+
+/** Max edit distance for typo forgiveness (Damerau-Levenshtein). */
+function maxTypoDistance(tokenLength: number): number {
+  if (tokenLength < 5) return 0; // too short — exact only
+  if (tokenLength < 8) return 1; // covers dynatsy ↔ dynasty (transposition)
+  return 2;
+}
+
+/**
+ * Damerau-Levenshtein distance (insert/delete/substitute + adjacent transpose).
+ * Caps work for short fragrance tokens; returns Infinity if over `limit`.
+ */
+export function editDistance(
+  a: string,
+  b: string,
+  limit = Number.POSITIVE_INFINITY,
+): number {
+  if (a === b) return 0;
+  const la = a.length;
+  const lb = b.length;
+  if (Math.abs(la - lb) > limit) return Number.POSITIVE_INFINITY;
+
+  // Two-row DP with transposition tracking.
+  let prev = new Array<number>(lb + 1);
+  let curr = new Array<number>(lb + 1);
+  let prevPrev = new Array<number>(lb + 1);
+  for (let j = 0; j <= lb; j++) prev[j] = j;
+
+  for (let i = 1; i <= la; i++) {
+    curr[0] = i;
+    let rowMin = curr[0];
+    for (let j = 1; j <= lb; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      let dist = Math.min(
+        prev[j] + 1, // delete
+        curr[j - 1] + 1, // insert
+        prev[j - 1] + cost, // substitute
+      );
+      if (
+        i > 1 &&
+        j > 1 &&
+        a[i - 1] === b[j - 2] &&
+        a[i - 2] === b[j - 1]
+      ) {
+        dist = Math.min(dist, prevPrev[j - 2] + 1); // transpose
+      }
+      curr[j] = dist;
+      rowMin = Math.min(rowMin, dist);
+    }
+    if (rowMin > limit) return Number.POSITIVE_INFINITY;
+    const swap = prevPrev;
+    prevPrev = prev;
+    prev = curr;
+    curr = swap;
+  }
+  return prev[lb] <= limit ? prev[lb] : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * True when `token` appears in haystack exactly, or fuzzily matches a word
+ * (typo forgiveness for tokens ≥ 5 chars).
+ */
+export function tokenMatchesText(token: string, haystack: string): boolean {
+  if (!token) return true;
+  if (haystack.includes(token)) return true;
+
+  const maxDist = maxTypoDistance(token.length);
+  if (maxDist === 0) return false;
+
+  const words = haystack.split(/[^a-z0-9]+/).filter((w) => w.length >= 2);
+  return words.some((word) => {
+    if (word.includes(token) || token.includes(word)) return true;
+    return editDistance(token, word, maxDist) <= maxDist;
+  });
+}
+
+/**
+ * Build catalog ILIKE patterns that tolerate space ↔ hyphen differences
+ * and cast a net wide enough for brand + name (+ light typo prefixes).
+ *
+ * Multi-word: emit every meaningful token (≥3) so "lattafa dynasty" hits
+ * both brand and name — not just the longest brand token.
+ * Typo soft-net: for tokens ≥5, also emit a 4-char prefix so "dynatsy"
+ * can still retrieve rows containing "dynasty" via "%dyna%".
  */
 export function buildCatalogSearchPatterns(rawQuery: string): string[] {
   const query = rawQuery.trim().replace(/\s+/g, " ");
@@ -26,15 +109,13 @@ export function buildCatalogSearchPatterns(rawQuery: string): string[] {
 
   const tokens = tokenizeQuery(query);
 
-  // Single-token queries: search that token directly.
-  // Multi-token: also search the most distinctive token so we still find
-  // "Spicebomb Extreme" via "%spicebomb%" when the exact phrase casing differs.
-  if (tokens.length === 1) {
-    add(tokens[0]);
-  } else if (tokens.length > 1) {
-    const distinctive = [...tokens].sort((a, b) => b.length - a.length)[0];
-    if (distinctive.length >= 4) {
-      add(distinctive);
+  for (const token of tokens) {
+    if (token.length >= 3) {
+      add(token);
+    }
+    // Soft typo retrieval: prefix catches near-misses without pg_trgm.
+    if (token.length >= 5) {
+      add(token.slice(0, 4));
     }
   }
 
@@ -72,9 +153,20 @@ function rowId(row: CatalogSearchable, fallback: number): number {
   return typeof row.id === "number" ? row.id : fallback;
 }
 
+function haystackFor(row: CatalogSearchable): {
+  perfume: string;
+  brand: string;
+  haystack: string;
+} {
+  const perfume = normalizeSearchText(row.perfume);
+  const brand = normalizeSearchText(row.brand);
+  return { perfume, brand, haystack: `${perfume} ${brand}` };
+}
+
 /**
  * Merge keyword hits with pgvector semantic hits.
  * Exact / phrase text matches stay on top; vibe queries surface via similarity.
+ * Multi-word text hits must satisfy token AND (exact or fuzzy).
  */
 export function mergeHybridCatalogResults<T extends CatalogSearchable>(
   rawQuery: string,
@@ -122,6 +214,7 @@ export function mergeHybridCatalogResults<T extends CatalogSearchable>(
 
 /**
  * Higher is better. Phrase / all-token perfume matches outrank partial or brand-only hits.
+ * Multi-word queries that miss a token (even with typo forgiveness) score 0.
  */
 export function scoreCatalogMatch(
   rawQuery: string,
@@ -130,12 +223,19 @@ export function scoreCatalogMatch(
   const query = rawQuery.trim().toLowerCase().replace(/\s+/g, " ");
   if (!query) return 0;
 
-  const perfume = normalizeSearchText(row.perfume);
-  const brand = normalizeSearchText(row.brand);
-  const haystack = `${perfume} ${brand}`;
+  const { perfume, brand, haystack } = haystackFor(row);
   const tokens = tokenizeQuery(query);
   const phraseSpaced = query.replace(/-/g, " ");
   const phraseHyphen = query.replace(/\s+/g, "-");
+
+  // AND gate for multi-word (exact or fuzzy).
+  if (tokens.length > 1) {
+    const required = tokens.filter((token) => token.length >= 3);
+    const check = required.length > 0 ? required : tokens;
+    if (!check.every((token) => tokenMatchesText(token, haystack))) {
+      return 0;
+    }
+  }
 
   let score = 0;
 
@@ -157,20 +257,32 @@ export function scoreCatalogMatch(
     score += 200;
   }
 
-  const tokensInPerfume = tokens.filter((token) => perfume.includes(token));
-  const tokensInHaystack = tokens.filter((token) => haystack.includes(token));
+  const exactInPerfume = tokens.filter((token) => perfume.includes(token));
+  const fuzzyOnlyInPerfume = tokens.filter(
+    (token) =>
+      !perfume.includes(token) && tokenMatchesText(token, perfume),
+  );
+  const exactInHaystack = tokens.filter((token) => haystack.includes(token));
+  const fuzzyInHaystack = tokens.filter((token) =>
+    tokenMatchesText(token, haystack),
+  );
 
-  if (tokens.length > 1 && tokensInPerfume.length === tokens.length) {
+  if (tokens.length > 1 && exactInPerfume.length === tokens.length) {
     score += 500;
-  } else if (tokens.length > 1 && tokensInHaystack.length === tokens.length) {
-    score += 300;
+  } else if (tokens.length > 1 && fuzzyOnlyInPerfume.length > 0) {
+    // All tokens cover perfume with at least one fuzzy — still strong.
+    const perfumeCovered = tokens.every((token) =>
+      tokenMatchesText(token, perfume),
+    );
+    if (perfumeCovered) score += 420;
+  } else if (tokens.length > 1 && fuzzyInHaystack.length === tokens.length) {
+    score += exactInHaystack.length === tokens.length ? 300 : 240;
   }
 
-  score += tokensInPerfume.length * 40;
-  score += tokensInHaystack.length * 15;
+  score += exactInPerfume.length * 40;
+  score += fuzzyOnlyInPerfume.length * 25;
+  score += exactInHaystack.length * 15;
 
-  // Soft rating boost so true equals prefer higher-rated bottles,
-  // without letting rating drown relevance.
   const rating = row.rating_value ?? row.ratingValue ?? 0;
   score += Math.min(rating, 5) * 2;
 
@@ -180,6 +292,7 @@ export function scoreCatalogMatch(
 /**
  * Drop weak false positives for multi-word searches
  * (e.g. "spicebomb extreme" must not keep a bottle that only matches "extreme").
+ * Allows light typo forgiveness on tokens ≥ 5 chars.
  */
 export function filterCatalogRows<T extends CatalogSearchable>(
   rawQuery: string,
@@ -189,11 +302,10 @@ export function filterCatalogRows<T extends CatalogSearchable>(
   if (tokens.length <= 1) return rows;
 
   return rows.filter((row) => {
-    const haystack = `${normalizeSearchText(row.perfume)} ${normalizeSearchText(row.brand)}`;
-    // Require every token ≥3 chars, or all tokens if shorter.
+    const { haystack } = haystackFor(row);
     const required = tokens.filter((token) => token.length >= 3);
     const check = required.length > 0 ? required : tokens;
-    return check.every((token) => haystack.includes(token));
+    return check.every((token) => tokenMatchesText(token, haystack));
   });
 }
 

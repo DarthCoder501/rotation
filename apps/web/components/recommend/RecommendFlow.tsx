@@ -16,7 +16,10 @@ import {
 import { CandidateCarousel } from "@/components/recommend/CandidateCarousel";
 import { RankerDebugPanel } from "@/components/recommend/RankerDebugPanel";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { CollectionWearPicker } from "@/components/wear/CollectionWearPicker";
+import { useWears } from "@/components/wear/WearProvider";
 import { fetchCollection } from "@/lib/api/collection-client";
+import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import { callMCPTool } from "@/lib/mcp-client";
 import { fallbackRecommendation } from "@/lib/mcp/fallback";
 import type { RecommendationResult, WeatherResult } from "@/lib/mcp/types";
@@ -37,6 +40,7 @@ import {
 import { resolveCoordsQuickly } from "@/lib/geo";
 import { useTempUnit } from "@/lib/temperature";
 import type { Fragrance } from "@/lib/types/fragrance";
+import type { WearSource } from "@/lib/types/wear";
 
 type FlowState = "boot" | "loading" | "ready" | "offline" | "empty" | "error";
 
@@ -66,6 +70,7 @@ export function RecommendFlow() {
   const router = useRouter();
   const { profileId, profile, loading: authLoading, refresh } = useAuth();
   const { unit: tempUnit } = useTempUnit();
+  const { todayWears, recordWear } = useWears();
 
   const [state, setState] = useState<FlowState>("boot");
   const [activity, setActivity] = useState(DEFAULT_ACTIVITY);
@@ -73,12 +78,14 @@ export function RecommendFlow() {
     useState<ActivityChoice>(DEFAULT_ACTIVITY);
   const [otherOpen, setOtherOpen] = useState(false);
   const [otherDraft, setOtherDraft] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [weather, setWeather] = useState<WeatherResult | null>(null);
   const [recommendation, setRecommendation] =
     useState<RecommendationResult | null>(null);
   const [options, setOptions] = useState<RankedFragrance[]>([]);
   const [chosenId, setChosenId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [wearError, setWearError] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
 
   const rankerRef = useRef<FragranceRanker | null>(null);
@@ -293,7 +300,37 @@ export function RecommendFlow() {
     };
   }
 
-  function applyChoice(
+  async function logWearForFragrance(
+    fragranceId: number,
+    source: WearSource,
+  ): Promise<boolean> {
+    setWearError(null);
+    try {
+      await recordWear({
+        fragranceId,
+        activity,
+        weather: weather
+          ? {
+              tempC: weather.tempC,
+              humidity: weather.humidity,
+              condition: weather.condition,
+            }
+          : null,
+        source,
+      });
+      return true;
+    } catch (e) {
+      setWearError(
+        toUserFacingMessage(
+          e,
+          "Choice saved locally, but wear log didn’t sync.",
+        ),
+      );
+      return false;
+    }
+  }
+
+  async function applyChoice(
     option: RankedFragrance,
     mode: "choose" | "love" | "prefer" = "choose",
   ) {
@@ -341,16 +378,40 @@ export function RecommendFlow() {
         : current,
     );
     haptic();
+    await logWearForFragrance(option.id, "recommend");
     setChoosing(false);
   }
 
   function handleChoose(option: RankedFragrance) {
-    applyChoice(option, "choose");
+    void applyChoice(option, "choose");
   }
 
   function handleLove() {
     if (!featured) return;
-    applyChoice(featured, "love");
+    void applyChoice(featured, "love");
+  }
+
+  async function handlePickFromCollection(fragrance: Fragrance) {
+    if (choosing) return;
+    setChoosing(true);
+    setPickerOpen(false);
+
+    setChosenId(fragrance.id);
+    setRecommendation((current) =>
+      current
+        ? {
+            ...current,
+            headline: fragrance.perfume,
+            selectedPerfume: fragrance.perfume,
+            selectedBrand: fragrance.brand,
+            accentAccord: fragrance.mainAccord1 ?? current.accentAccord,
+            narrative: `${fragrance.perfume} by ${fragrance.brand} — logged from your collection for today.`,
+          }
+        : current,
+    );
+    haptic();
+    await logWearForFragrance(fragrance.id, "collection");
+    setChoosing(false);
   }
 
   function handleSkip() {
@@ -418,7 +479,7 @@ export function RecommendFlow() {
         ctx,
       );
     }
-    applyChoice(winner, "prefer");
+    void applyChoice(winner, "prefer");
   }
 
   function handleSkipCandidate(skipped: RankedFragrance) {
@@ -495,6 +556,24 @@ export function RecommendFlow() {
             onSkip={handleSkip}
           />
 
+          {todayWears.length > 0 && (
+            <p className="mt-3 text-xs text-(--text-secondary)" aria-live="polite">
+              Logged today:{" "}
+              {todayWears
+                .map(
+                  (wear) =>
+                    wear.fragrance?.perfume ?? `Fragrance #${wear.fragranceId}`,
+                )
+                .join(" · ")}
+            </p>
+          )}
+
+          {wearError && (
+            <p className="mt-2 text-xs text-(--danger)" role="alert">
+              {wearError}
+            </p>
+          )}
+
           <ActivityPicker
             value={activity}
             selectedChip={selectedChip}
@@ -528,6 +607,7 @@ export function RecommendFlow() {
             <p className="mb-3 text-xs text-(--text-secondary)">
               Ranked from your collection likes + weather fit. Wear this, Skip,
               or pick another option to quietly personalize future days.
+              Multiple wears per day are fine — each choice appends.
             </p>
             <ul role="list" className="space-y-3">
               {options.map((option) => (
@@ -541,6 +621,15 @@ export function RecommendFlow() {
                 />
               ))}
             </ul>
+
+            <button
+              type="button"
+              disabled={choosing}
+              onClick={() => setPickerOpen(true)}
+              className="mt-4 inline-flex min-h-(--space-touch) items-center text-sm text-(--accent-gold) underline-offset-4 hover:underline disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+            >
+              Wear something else from collection
+            </button>
           </section>
         </>
       )}
@@ -552,6 +641,14 @@ export function RecommendFlow() {
         onClose={() => setOtherOpen(false)}
         onConfirm={handleConfirmOther}
       />
+
+      {pickerOpen && (
+        <CollectionWearPicker
+          busy={choosing}
+          onClose={() => setPickerOpen(false)}
+          onSelect={(fragrance) => void handlePickFromCollection(fragrance)}
+        />
+      )}
 
       <RankerDebugPanel />
     </div>

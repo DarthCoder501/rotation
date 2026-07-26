@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { SlideshowNav } from "@/components/ui/SlideshowNav";
 import {
   clearLearnedPreferences,
   updateTasteProfile,
@@ -16,7 +17,7 @@ import {
 
 type ChipKey = keyof UserProfile;
 
-const SECTIONS: Array<{
+const CHIP_SECTIONS: Array<{
   key: ChipKey;
   title: string;
   hint: string;
@@ -48,8 +49,21 @@ const SECTIONS: Array<{
   },
 ];
 
-export function TastePreferencesPanel() {
+const SLIDE_OPTIONS = [
+  ...CHIP_SECTIONS.map((section) => ({
+    id: section.key as string,
+    label: section.title,
+  })),
+  { id: "learned", label: "Learned preferences" },
+] as const;
+
+export function TastePreferencesPanel({
+  slideshow = false,
+}: {
+  slideshow?: boolean;
+}) {
   const { profileId, profile, refresh } = useAuth();
+  const [slideIndex, setSlideIndex] = useState(0);
   const [draft, setDraft] = useState<UserProfile | null>(null);
   const [inputs, setInputs] = useState<Record<ChipKey, string>>({
     likedAccords: "",
@@ -163,6 +177,94 @@ export function TastePreferencesPanel() {
     }
   }
 
+  const activeSlide = SLIDE_OPTIONS[slideIndex] ?? SLIDE_OPTIONS[0];
+  const activeChip =
+    CHIP_SECTIONS.find((section) => section.key === activeSlide.id) ?? null;
+
+  function renderChipSection(
+    section: (typeof CHIP_SECTIONS)[number],
+  ) {
+    return (
+      <GlassCard key={section.key} className="p-4">
+        <h3 className="text-sm font-medium text-(--text-primary)">
+          {section.title}
+        </h3>
+        <p className="mt-1 text-xs text-(--text-secondary)">{section.hint}</p>
+
+        <ul className="mt-3 flex flex-wrap gap-2" aria-label={section.title}>
+          {display[section.key].length === 0 ? (
+            <li className="text-xs text-(--text-secondary)">None yet</li>
+          ) : (
+            display[section.key].map((chip) => (
+              <li key={`${section.key}-${chip}`}>
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={() => removeChip(section.key, chip)}
+                  className="inline-flex min-h-9 items-center gap-1 rounded-full border border-(--glass-border) bg-(--glass-bg) px-3 text-xs text-(--text-primary) hover:border-(--danger)/40 hover:text-(--danger) disabled:opacity-50"
+                  aria-label={`Remove ${chip} from ${section.title}`}
+                >
+                  {chip}
+                  <span aria-hidden="true">×</span>
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+
+        <div className="mt-3 flex gap-2">
+          <input
+            type="text"
+            value={inputs[section.key]}
+            onChange={(e) =>
+              setInputs((prev) => ({
+                ...prev,
+                [section.key]: e.target.value,
+              }))
+            }
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addChip(section.key);
+              }
+            }}
+            placeholder={section.placeholder}
+            className="h-11 min-w-0 flex-1 rounded-md border border-(--glass-border) bg-(--glass-bg) px-3 text-sm text-(--text-primary) placeholder:text-(--text-secondary)"
+            aria-label={`Add to ${section.title}`}
+          />
+          <button
+            type="button"
+            disabled={saving || !inputs[section.key].trim()}
+            onClick={() => addChip(section.key)}
+            className="min-h-(--space-touch) rounded-md border border-(--glass-border) px-4 text-sm text-(--text-primary) disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+      </GlassCard>
+    );
+  }
+
+  const learnedCard = (
+    <GlassCard className="p-4">
+      <h3 className="text-sm font-medium text-(--text-primary)">
+        Learned preferences
+      </h3>
+      <p className="mt-1 text-xs text-(--text-secondary)">
+        Quiet updates from Wear this / Skip and daily choices. Clearing resets
+        the ranker’s weight vector — not your collection.
+      </p>
+      <button
+        type="button"
+        disabled={clearing || !profileId}
+        onClick={() => void handleClearLearned()}
+        className="mt-4 inline-flex min-h-(--space-touch) items-center justify-center rounded-full border border-(--danger)/40 px-5 text-sm text-(--danger) hover:bg-(--danger)/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+      >
+        {clearing ? "Clearing…" : "Clear learned preferences"}
+      </button>
+    </GlassCard>
+  );
+
   return (
     <section aria-labelledby="taste-heading" className="space-y-4">
       <div>
@@ -177,83 +279,31 @@ export function TastePreferencesPanel() {
         </p>
       </div>
 
-      {SECTIONS.map((section) => (
-        <GlassCard key={section.key} className="p-4">
-          <h3 className="text-sm font-medium text-(--text-primary)">
-            {section.title}
-          </h3>
-          <p className="mt-1 text-xs text-(--text-secondary)">{section.hint}</p>
+      {slideshow && (
+        <SlideshowNav
+          label="Taste group"
+          options={SLIDE_OPTIONS.map((option) => ({
+            id: option.id,
+            label: option.label,
+          }))}
+          activeId={activeSlide.id}
+          itemNoun="taste group"
+          disabled={saving}
+          onSelect={(id) => {
+            const next = SLIDE_OPTIONS.findIndex((option) => option.id === id);
+            if (next >= 0) setSlideIndex(next);
+          }}
+        />
+      )}
 
-          <ul className="mt-3 flex flex-wrap gap-2" aria-label={section.title}>
-            {display[section.key].length === 0 ? (
-              <li className="text-xs text-(--text-secondary)">None yet</li>
-            ) : (
-              display[section.key].map((chip) => (
-                <li key={`${section.key}-${chip}`}>
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => removeChip(section.key, chip)}
-                    className="inline-flex min-h-9 items-center gap-1 rounded-full border border-(--glass-border) bg-(--glass-bg) px-3 text-xs text-(--text-primary) hover:border-(--danger)/40 hover:text-(--danger) disabled:opacity-50"
-                    aria-label={`Remove ${chip} from ${section.title}`}
-                  >
-                    {chip}
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </li>
-              ))
-            )}
-          </ul>
-
-          <div className="mt-3 flex gap-2">
-            <input
-              type="text"
-              value={inputs[section.key]}
-              onChange={(e) =>
-                setInputs((prev) => ({
-                  ...prev,
-                  [section.key]: e.target.value,
-                }))
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addChip(section.key);
-                }
-              }}
-              placeholder={section.placeholder}
-              className="h-11 min-w-0 flex-1 rounded-md border border-(--glass-border) bg-(--glass-bg) px-3 text-sm text-(--text-primary) placeholder:text-(--text-secondary)"
-              aria-label={`Add to ${section.title}`}
-            />
-            <button
-              type="button"
-              disabled={saving || !inputs[section.key].trim()}
-              onClick={() => addChip(section.key)}
-              className="min-h-(--space-touch) rounded-md border border-(--glass-border) px-4 text-sm text-(--text-primary) disabled:opacity-50"
-            >
-              Add
-            </button>
-          </div>
-        </GlassCard>
-      ))}
-
-      <GlassCard className="p-4">
-        <h3 className="text-sm font-medium text-(--text-primary)">
-          Learned preferences
-        </h3>
-        <p className="mt-1 text-xs text-(--text-secondary)">
-          Quiet updates from Love / Skip and daily choices. Clearing resets the
-          ranker’s weight vector — not your collection.
-        </p>
-        <button
-          type="button"
-          disabled={clearing || !profileId}
-          onClick={() => void handleClearLearned()}
-          className="mt-4 inline-flex min-h-(--space-touch) items-center justify-center rounded-full border border-(--danger)/40 px-5 text-sm text-(--danger) hover:bg-(--danger)/10 disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
-        >
-          {clearing ? "Clearing…" : "Clear learned preferences"}
-        </button>
-      </GlassCard>
+      {slideshow ? (
+        activeChip ? renderChipSection(activeChip) : learnedCard
+      ) : (
+        <>
+          {CHIP_SECTIONS.map((section) => renderChipSection(section))}
+          {learnedCard}
+        </>
+      )}
 
       {error && (
         <p className="text-sm text-(--danger)" role="alert">

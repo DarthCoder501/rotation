@@ -6,6 +6,7 @@ import { AccordBubbles } from "@/components/collection/AccordBubbles";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { createSubmission } from "@/lib/api/submissions-client";
 import { KNOWN_ACCORDS } from "@/lib/accord-colors";
+import { normalizeExternalUrl } from "@/lib/url";
 
 interface SubmitFragranceFormProps {
   initialQuery?: string;
@@ -39,6 +40,7 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
   const router = useRouter();
   const defaults = useMemo(() => parseInitialQuery(initialQuery), [initialQuery]);
   const accordInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
 
   const [perfume, setPerfume] = useState(defaults.perfume);
   const [brand, setBrand] = useState(defaults.brand);
@@ -52,6 +54,8 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(0);
   const [userNotes, setUserNotes] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -121,6 +125,17 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
     event.preventDefault();
     setError(null);
     setSuccess(null);
+
+    const trimmedUrl = sourceUrl.trim();
+    const normalizedUrl = trimmedUrl ? normalizeExternalUrl(trimmedUrl) : null;
+    if (trimmedUrl && !normalizedUrl) {
+      setUrlError(
+        "Enter a full web address, like https://www.fragrantica.com/perfume/…",
+      );
+      urlInputRef.current?.focus();
+      return;
+    }
+    setUrlError(null);
     setSubmitting(true);
 
     try {
@@ -134,6 +149,7 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
         baseNotes: baseNotes.trim() || undefined,
         mainAccords,
         userNotes: userNotes.trim() || undefined,
+        sourceUrl: normalizedUrl ?? undefined,
       });
 
       setSuccess(
@@ -181,6 +197,54 @@ export function SubmitFragranceForm({ initialQuery = "" }: SubmitFragranceFormPr
             onChange={(e) => setBrand(e.target.value)}
             className="mt-1 h-11 w-full rounded-md border border-(--glass-border) bg-(--glass-bg) px-3 text-(--text-primary)"
           />
+        </div>
+
+        <div>
+          <label
+            htmlFor="submit-source-url"
+            className="block text-sm text-(--text-primary)"
+          >
+            Fragrantica link{" "}
+            <span className="text-(--text-secondary)">(optional)</span>
+          </label>
+          <p
+            id="submit-source-url-hint"
+            className="mt-1 text-xs text-(--text-secondary)"
+          >
+            Helps reviewers verify notes faster. Any reference page works.
+          </p>
+          <input
+            ref={urlInputRef}
+            id="submit-source-url"
+            type="text"
+            inputMode="url"
+            autoComplete="url"
+            spellCheck={false}
+            value={sourceUrl}
+            onChange={(e) => {
+              setSourceUrl(e.target.value);
+              if (urlError) setUrlError(null);
+            }}
+            aria-invalid={urlError ? true : undefined}
+            aria-describedby={
+              urlError
+                ? "submit-source-url-hint submit-source-url-error"
+                : "submit-source-url-hint"
+            }
+            placeholder="https://www.fragrantica.com/perfume/…"
+            className={`mt-2 h-11 w-full rounded-md border bg-(--glass-bg) px-3 text-(--text-primary) placeholder:text-(--text-secondary) ${
+              urlError ? "border-(--danger)" : "border-(--glass-border)"
+            }`}
+          />
+          {urlError && (
+            <p
+              id="submit-source-url-error"
+              role="alert"
+              className="mt-1 text-xs text-(--danger)"
+            >
+              {urlError}
+            </p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

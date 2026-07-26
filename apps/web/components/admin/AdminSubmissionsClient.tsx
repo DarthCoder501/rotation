@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { AdminApprovedEditForm } from "@/components/admin/AdminApprovedEditForm";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { toUserFacingMessage } from "@/lib/api/user-facing-error";
 import type { FragranceSubmission } from "@/lib/types/submission";
+import { normalizeExternalUrl } from "@/lib/url";
 
 type FilterStatus = "pending" | "approved" | "rejected" | "all";
 
@@ -17,7 +19,10 @@ export function AdminSubmissionsClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [urlDrafts, setUrlDrafts] = useState<Record<number, string>>({});
+  const [urlErrors, setUrlErrors] = useState<Record<number, string>>({});
 
   const load = useCallback(async () => {
     if (!isAdmin) return;
@@ -34,7 +39,12 @@ export function AdminSubmissionsClient() {
       if (!res.ok) {
         throw new Error(body.message ?? `Failed (${res.status})`);
       }
-      setSubmissions(body.submissions ?? []);
+      const rows = body.submissions ?? [];
+      setSubmissions(rows);
+      setUrlDrafts(
+        Object.fromEntries(rows.map((row) => [row.id, row.sourceUrl ?? ""])),
+      );
+      setUrlErrors({});
     } catch (e) {
       setSubmissions([]);
       setError(toUserFacingMessage(e, "Couldn't load submissions."));
@@ -50,19 +60,45 @@ export function AdminSubmissionsClient() {
     return () => window.clearTimeout(timeoutId);
   }, [load]);
 
+  function selectStatus(next: FilterStatus) {
+    setEditingId(null);
+    setStatus(next);
+  }
+
   async function handleApprove(id: number) {
+    const draft = (urlDrafts[id] ?? "").trim();
+    const url = draft ? normalizeExternalUrl(draft) : null;
+    if (draft && !url) {
+      setUrlErrors((prev) => ({
+        ...prev,
+        [id]: "Enter a full web address, like https://www.fragrantica.com/perfume/…",
+      }));
+      return;
+    }
+    setUrlErrors((prev) => {
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+
     setBusyId(id);
     setMessage(null);
     setError(null);
     try {
       const res = await fetch(`/api/admin/submissions/${id}/approve`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
       });
       const body = (await res.json().catch(() => ({}))) as { message?: string };
       if (!res.ok) {
         throw new Error(body.message ?? `Approve failed (${res.status})`);
       }
-      setMessage("Published to catalog — Custom badge cleared for that scent.");
+      setMessage(
+        url
+          ? "Published to catalog with the reference link attached."
+          : "Published to catalog — Custom badge cleared for that scent.",
+      );
       await load();
     } catch (e) {
       setError(toUserFacingMessage(e, "Couldn't approve that submission."));
@@ -155,7 +191,7 @@ export function AdminSubmissionsClient() {
             key={value}
             type="button"
             aria-pressed={status === value}
-            onClick={() => setStatus(value)}
+            onClick={() => selectStatus(value)}
             className={`min-h-9 rounded-md border px-3 text-xs ${
               status === value
                 ? "border-(--accent-gold)/50 text-(--accent-gold)"
@@ -241,6 +277,22 @@ export function AdminSubmissionsClient() {
                       <dd className="inline">{s.userNotes}</dd>
                     </div>
                   )}
+                  {s.sourceUrl && (
+                    <div>
+                      <dt className="inline text-(--text-primary)">Link: </dt>
+                      <dd className="inline">
+                        <a
+                          href={s.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-(--accent-gold) underline underline-offset-2 hover:text-(--accent-gold-hover)"
+                        >
+                          Submitted reference
+                          <span className="sr-only"> (opens in a new tab)</span>
+                        </a>
+                      </dd>
+                    </div>
+                  )}
                   {s.promotedFragranceId != null && (
                     <div>
                       <dt className="inline text-(--text-primary)">
@@ -258,24 +310,127 @@ export function AdminSubmissionsClient() {
                   )}
                 </dl>
                 {s.status === "pending" && (
-                  <div className="mt-4 flex gap-2">
-                    <button
-                      type="button"
-                      disabled={busyId === s.id}
-                      onClick={() => void handleApprove(s.id)}
-                      className="min-h-10 flex-1 rounded-md border border-(--accent-gold)/40 text-sm text-(--accent-gold) disabled:opacity-50"
-                    >
-                      {busyId === s.id ? "Working…" : "Approve"}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busyId === s.id}
-                      onClick={() => void handleReject(s.id)}
-                      className="min-h-10 flex-1 rounded-md border border-(--glass-border) text-sm text-(--text-secondary) hover:border-(--danger)/40 hover:text-(--danger) disabled:opacity-50"
-                    >
-                      Reject
-                    </button>
-                  </div>
+                  <>
+                    <div className="mt-4">
+                      <label
+                        htmlFor={`admin-url-${s.id}`}
+                        className="block text-xs text-(--text-primary)"
+                      >
+                        Fragrantica link{" "}
+                        <span className="text-(--text-secondary)">
+                          (optional)
+                        </span>
+                      </label>
+                      <p
+                        id={`admin-url-hint-${s.id}`}
+                        className="mt-1 text-xs text-(--text-secondary)"
+                      >
+                        Saved to the published scent on approve. Leave as-is to
+                        keep the submitter&apos;s link.
+                      </p>
+                      <input
+                        id={`admin-url-${s.id}`}
+                        type="text"
+                        inputMode="url"
+                        autoComplete="url"
+                        spellCheck={false}
+                        value={urlDrafts[s.id] ?? ""}
+                        disabled={busyId === s.id}
+                        onChange={(e) => {
+                          setUrlDrafts((prev) => ({
+                            ...prev,
+                            [s.id]: e.target.value,
+                          }));
+                          if (urlErrors[s.id]) {
+                            setUrlErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[s.id];
+                              return next;
+                            });
+                          }
+                        }}
+                        aria-invalid={urlErrors[s.id] ? true : undefined}
+                        aria-describedby={
+                          urlErrors[s.id]
+                            ? `admin-url-hint-${s.id} admin-url-error-${s.id}`
+                            : `admin-url-hint-${s.id}`
+                        }
+                        placeholder="https://www.fragrantica.com/perfume/…"
+                        className={`mt-2 h-11 w-full rounded-md border bg-(--glass-bg) px-3 text-sm text-(--text-primary) placeholder:text-(--text-secondary) disabled:opacity-50 ${
+                          urlErrors[s.id]
+                            ? "border-(--danger)"
+                            : "border-(--glass-border)"
+                        }`}
+                      />
+                      {urlErrors[s.id] && (
+                        <p
+                          id={`admin-url-error-${s.id}`}
+                          role="alert"
+                          className="mt-1 text-xs text-(--danger)"
+                        >
+                          {urlErrors[s.id]}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        disabled={busyId === s.id}
+                        onClick={() => void handleApprove(s.id)}
+                        className="min-h-(--space-touch) flex-1 rounded-md border border-(--accent-gold)/60 bg-(--accent-gold)/10 text-sm text-(--accent-gold) hover:border-(--accent-gold) hover:bg-(--accent-gold)/20 disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                      >
+                        {busyId === s.id ? "Working…" : "Approve"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busyId === s.id}
+                        onClick={() => void handleReject(s.id)}
+                        className="min-h-(--space-touch) flex-1 rounded-md border border-(--glass-border) text-sm text-(--text-secondary) hover:border-(--danger)/60 hover:text-(--danger) disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {s.status === "approved" && (
+                  <>
+                    {editingId === s.id ? (
+                      <AdminApprovedEditForm
+                        submission={s}
+                        busy={busyId === s.id}
+                        onCancel={() => setEditingId(null)}
+                        onSaved={async () => {
+                          setEditingId(null);
+                          await load();
+                        }}
+                        onError={(msg) => {
+                          setMessage(null);
+                          setError(msg);
+                        }}
+                        onSuccess={(msg) => {
+                          setError(null);
+                          setMessage(msg);
+                        }}
+                      />
+                    ) : (
+                      <div className="mt-4">
+                        <button
+                          type="button"
+                          disabled={busyId === s.id}
+                          onClick={() => {
+                            setEditingId(s.id);
+                            setError(null);
+                            setMessage(null);
+                          }}
+                          className="min-h-(--space-touch) w-full rounded-md border border-(--accent-gold)/60 bg-(--accent-gold)/10 text-sm text-(--accent-gold) hover:border-(--accent-gold) hover:bg-(--accent-gold)/20 disabled:opacity-50 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+                        >
+                          Edit published scent
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </GlassCard>
             </li>

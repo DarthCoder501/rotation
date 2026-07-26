@@ -4,6 +4,7 @@ import { SerwistProvider } from "@serwist/turbopack/react";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { SkipLink } from "@/components/shell/SkipLink";
+import { WearProvider } from "@/components/wear/WearProvider";
 import "./globals.css";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-display" });
@@ -75,10 +76,12 @@ export default function RootLayout({
         <SerwistProvider swUrl="/serwist/sw.js">
           <SkipLink />
           <AuthProvider>
-            <main id="main-content" tabIndex={-1}>
-              {children}
-            </main>
-            <InstallPrompt />
+            <WearProvider>
+              <main id="main-content" tabIndex={-1}>
+                {children}
+              </main>
+              <InstallPrompt />
+            </WearProvider>
           </AuthProvider>
         </SerwistProvider>
       </body>

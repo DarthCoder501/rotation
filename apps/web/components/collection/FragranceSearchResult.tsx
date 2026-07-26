@@ -85,6 +85,26 @@ export function FragranceSearchResult({
           {expanded ? "Hide notes" : "Show notes"}
         </button>
 
+        <Link
+          href={`/fragrance/${fragrance.id}`}
+          className="inline-flex min-h-(--space-touch) items-center rounded-full border border-(--glass-border) px-4 text-sm text-(--text-secondary) hover:border-(--accent-gold)/50 hover:text-(--text-primary) focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+        >
+          Details
+        </Link>
+
+        {fragrance.url && (
+          <a
+            href={fragrance.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-(--space-touch) items-center rounded-full border border-(--accent-gold)/50 px-4 text-sm text-(--accent-gold) hover:border-(--accent-gold) hover:bg-(--accent-gold)/10 focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
+          >
+            Fragrantica
+            <span aria-hidden="true"> ↗</span>
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        )}
+
         <div className="flex-1" />
 
         {isOwned ? (
@@ -158,18 +178,19 @@ export function EmptySearchState({ query }: EmptySearchStateProps) {
   );
 }
 
-/** Shown under search hits when none of the results are what the user wants. */
+/** Compact escape hatch under the search field — always visible while querying. */
 export function CreateCustomSearchOption({ query }: { query: string }) {
   return (
-    <div className="rounded-md border border-dashed border-(--glass-border) px-4 py-5 text-center">
-      <p className="text-sm text-(--text-secondary)">
-        Don&apos;t see what you&apos;re looking for?
+    <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md border border-(--glass-border) bg-(--glass-bg) px-3 py-2.5">
+      <p className="text-xs text-(--text-secondary)">
+        Can&apos;t find it in the catalog?
       </p>
       <Link
         href={`/submit?q=${encodeURIComponent(query)}`}
-        className="mt-2 inline-flex min-h-(--space-touch) items-center text-(--accent-gold) underline-offset-4 hover:underline"
+        className="inline-flex min-h-9 items-center text-sm text-(--accent-gold) underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)"
       >
-        Create a custom fragrance →
+        Create a custom fragrance
+        <span aria-hidden="true"> →</span>
       </Link>
     </div>
   );
